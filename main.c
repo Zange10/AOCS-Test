@@ -23,10 +23,11 @@ typedef struct {
 
 
 gboolean key_pressed[6] = {FALSE,FALSE,FALSE,FALSE, FALSE, FALSE};
+gboolean mouse_pressed[3] = {FALSE,FALSE,FALSE};
 
 int xg = 1,yg = 1,wg = 1,hg = 1;
 int WINDOW_WIDTH = 1000, WINDOW_HEIGHT = 1000;
-double DISTANCE = 2000;
+double DISTANCE = 1000;
 int frames = 0;
 const int FPS = 60;
 double lasttime;
@@ -34,12 +35,16 @@ time_t rawtime;
 
 Cube cube = {100,0,0, 0, 400,0,0};
 
+//Point3D origin = {350,190,0};
 Point3D origin = {0,0,0};
 Vector looking = {1,0,0};
 Point3D lightsource = {0,-500,0};
 
 void print_point(Point3D point) {
     printf("[%lf; %lf; %lf]\n", point.x, point.y, point.z);
+}
+void print_point2D(Point2D point) {
+    printf("[%lf; %lf]\n", point.x, point.y);
 }
 
 Vector getVector(Point3D p1, Point3D p2) {
@@ -73,7 +78,7 @@ double get_vector_angle(Vector v1, Vector v2) {
 Point2D p3d_to_p2d(Point3D p3d) {
     Point2D p2d;
     p2d.x = (p3d.y-origin.y)/(p3d.x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
-    p2d.y = (p3d.z-origin.z)/(p3d.x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+    p2d.y = -(p3d.z-origin.z)/(p3d.x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
     return p2d;
 }
 
@@ -140,6 +145,8 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
 
 
     for(int i = 0; i < 4; i++) {
+        Vector tempv = getVector(origin,points[i]);
+        if(get_vector_angle(tempv,looking) > M_PI/2) return;
         p2d[i+2] = p3d_to_p2d(points[i]);
     }
 
@@ -150,13 +157,6 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
     }
 
     cairo_set_source_rgb(cr, 0, light, 0);
-    cairo_move_to(cr, p2d[5].x, p2d[5].y);
-    for(int i = 0; i < 3; i++) {
-        cairo_line_to(cr, p2d[i+2].x, p2d[i+2].y);
-    }
-    cairo_close_path(cr);
-    cairo_fill(cr);
-
     cairo_move_to(cr, p2d[5].x, p2d[5].y);
     for(int i = 0; i < 3; i++) {
         cairo_line_to(cr, p2d[i+2].x, p2d[i+2].y);
@@ -213,7 +213,6 @@ void draw_faces(cairo_t *cr, Cube cube) {
         }
         draw_face(cr,origin,cube.p,p_temp);
     }
-
     for(int i = 0; i < 2; i++) {
         for(int j = 0; j < 4; j++) {
             p_temp[j] = p3d[j+i*4];
@@ -231,8 +230,8 @@ void draw_faces(cairo_t *cr, Cube cube) {
 }
 
 static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
-    if (event->button == 1) {
-        g_print("Left mouse button pressed at (%f, %f)\n", event->x, event->y);
+    if (event->button == 3) {
+        g_print("Right mouse button pressed at (%f, %f, %d)\n", event->x, event->y, event->button);
     }
     return FALSE;
 }
@@ -271,11 +270,11 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     //cube.pitch  += M_PI/200;
     //cube.yaw    += M_PI/250;
-    //cube.roll   += M_PI/200;
+    cube.roll   += M_PI/200;
     
-    cube.pitch  = M_PI/12;
+    //cube.pitch  = M_PI/12;
     //cube.yaw    = M_PI/4;
-    cube.roll   = M_PI/15;
+    //cube.roll   = M_PI/15;
 
     if(cube.roll > M_PI*2) cube.roll -= M_PI*2;
     //draw_skeleton(widget, cr, data);
@@ -292,6 +291,8 @@ static gboolean on_timeout(gpointer data)
     if(key_pressed[3]) origin.y += move;
     if(key_pressed[4]) origin.z -= move;
     if(key_pressed[5]) origin.z += move;
+
+    print_point(origin);
 
 
     rawtime = time(NULL);
@@ -316,6 +317,7 @@ int main(int argc, char *argv[])
     gtk_window_set_title(GTK_WINDOW(window), "My GTK Window");
     gtk_window_set_default_size(GTK_WINDOW(window), WINDOW_WIDTH, WINDOW_HEIGHT);
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_press_event), NULL);
     g_signal_connect(window, "button-press-event", G_CALLBACK(on_button_press_event), NULL);
     g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_press_event), NULL);
     g_signal_connect(G_OBJECT(window), "key-release-event", G_CALLBACK(key_release_callback), NULL);
