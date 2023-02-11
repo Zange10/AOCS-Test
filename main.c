@@ -4,10 +4,6 @@
 #include <math.h>
 
 typedef struct {
-    int x,y,height,width;
-} DIM;
-
-typedef struct {
     double x,y,z;
 } Point3D;
 
@@ -39,6 +35,7 @@ time_t rawtime;
 Cube cube = {100,0,0, 0, 400,0,0};
 
 Point3D origin = {0,0,0};
+Vector looking = {1,0,0};
 Point3D lightsource = {0,-500,0};
 
 void print_point(Point3D point) {
@@ -71,6 +68,13 @@ Vector normalize_vector(Vector v) {
 
 double get_vector_angle(Vector v1, Vector v2) {
     return acos( dot_product(v1,v2) / (get_vector_length(v1)*get_vector_length(v2)) );
+}
+
+Point2D p3d_to_p2d(Point3D p3d) {
+    Point2D p2d;
+    p2d.x = (p3d.y-origin.y)/(p3d.x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
+    p2d.y = (p3d.z-origin.z)/(p3d.x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+    return p2d;
 }
 
 Point3D * getCubePoints(Point3D center, double size, double pitch, double yaw, double roll) {
@@ -127,18 +131,16 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
     Vector ls2c = getVector(lightsource,center);
 
     double a = get_vector_angle(CoM2c,o2c);
-    if(a < M_PI/2) return;
+    double a_looking = get_vector_angle(o2c,looking);
+    if(a < M_PI/2 || a_looking > M_PI/2) return;
     
     Point2D p2d[6];
-    p2d[0].x = (center.y-origin.y)/(center.x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
-    p2d[0].y = (center.z-origin.z)/(center.x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+    p2d[0] = p3d_to_p2d(center);
+    p2d[1] = p3d_to_p2d(CoM);
 
-    p2d[1].x = (CoM.y-origin.y)/(CoM.x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
-    p2d[1].y = (CoM.z-origin.z)/(CoM.x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
 
     for(int i = 0; i < 4; i++) {
-        p2d[i+2].x = (points[i].y-origin.y)/(points[i].x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
-        p2d[i+2].y = (points[i].z-origin.z)/(points[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+        p2d[i+2] = p3d_to_p2d(points[i]);
     }
 
     double a_ls = get_vector_angle(CoM2c, ls2c);
@@ -184,15 +186,13 @@ void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
     Point2D p2d[8];
 
     for(int i = 0; i < 8; i++) {
-        p2d[i].x = (p3d[i].y-origin.y)/(p3d[i].x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
-        p2d[i].y = (p3d[i].z-origin.z)/(p3d[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+        p2d[i] = p3d_to_p2d(p3d[i]);
     }
 
     cairo_set_source_rgb(cr, 1, 1, 1);
     for(int i = 0; i < 8; i++) {
         for(int j = i; j < 8; j++) {
-            if(i == j) continue;
-            if(i+j==7) continue;
+            if(i == j || i+j==7) continue;
             draw_stroke(cr,p2d[i],p2d[j]);
         }
     }
@@ -204,8 +204,7 @@ void draw_faces(cairo_t *cr, Cube cube) {
     Point3D p_temp[4];
 
     for(int i = 0; i < 8; i++) {
-        p2d[i].x = (p3d[i].y-origin.y)/(p3d[i].x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
-        p2d[i].y = (p3d[i].z-origin.z)/(p3d[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+        p2d[i] = p3d_to_p2d(p3d[i]);
     }
 
     for(int i = 0; i < 2; i++) {
@@ -268,13 +267,15 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     if(WINDOW_WIDTH<WINDOW_HEIGHT) DISTANCE = WINDOW_WIDTH;
     else DISTANCE = WINDOW_HEIGHT;
 
+    //lightsource = origin;
+
     //cube.pitch  += M_PI/200;
-    cube.yaw    += M_PI/250;
-    cube.roll   += M_PI/200;
+    //cube.yaw    += M_PI/250;
+    //cube.roll   += M_PI/200;
     
     cube.pitch  = M_PI/12;
     //cube.yaw    = M_PI/4;
-    //cube.roll   = M_PI/15;
+    cube.roll   = M_PI/15;
 
     if(cube.roll > M_PI*2) cube.roll -= M_PI*2;
     //draw_skeleton(widget, cr, data);
