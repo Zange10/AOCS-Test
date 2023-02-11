@@ -39,7 +39,7 @@ time_t rawtime;
 Cube cube = {100,0,0, 0, 400,0,0};
 
 Point3D origin = {0,0,0};
-Point3D lightsource = {0,1000,0};
+Point3D lightsource = {0,-500,0};
 
 void print_point(Point3D point) {
     printf("[%lf; %lf; %lf]\n", point.x, point.y, point.z);
@@ -128,14 +128,6 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
 
     double a = get_vector_angle(CoM2c,o2c);
     if(a < M_PI/2) return;
-
-    /*for(int i = 0; i < 4; i++) {
-        printf("%d: ", i);
-        print_point(points[i]);
-    }
-    print_point(CoM);
-    print_point(center);
-    printf("ANGLE: %lf\n\n", a);*/
     
     Point2D p2d[6];
     p2d[0].x = (center.y-origin.y)/(center.x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
@@ -153,7 +145,6 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
     double light = 0.5;
     if(a_ls > M_PI/2) {
         light += cos(a_ls+M_PI)*0.4;
-        printf("%g\n",a_ls);    
     }
 
     cairo_set_source_rgb(cr, 0, light, 0);
@@ -172,26 +163,15 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
     cairo_fill(cr);
 
 
-    /*cairo_set_source_rgb(cr, 0, 1, 0);
-    cairo_move_to(cr, p2d[1].x, p2d[1].y);
-    cairo_line_to(cr, p2d[0].x, p2d[0].y);
-    cairo_stroke(cr);
-
-    for(int i = 0; i < 4; i++) {
-        p2d[i+2].x = (points[i].y-origin.y)/(points[i].x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
-        p2d[i+2].y = (points[i].z-origin.z)/(points[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+    cairo_set_source_rgb(cr, 0, 0.2, 0);
+    draw_stroke(cr, p2d[5], p2d[2]);
+    for(int i = 0; i < 3; i++) {
+        draw_stroke(cr, p2d[2+i], p2d[3+i]);
     }
-    for(int i = 2; i < 6; i++) {
-        cairo_set_source_rgb(cr, 1, (i-2)*0.25, (i-2)*0.25);
-        cairo_move_to(cr, p2d[1].x, p2d[1].y);
-        cairo_line_to(cr, p2d[i].x, p2d[i].y);
-        cairo_stroke(cr);
-    }*/
 }
 
 void draw_stroke(cairo_t *cr, Point2D p1, Point2D p2) {
-    cairo_set_source_rgb(cr, 1, 1, 1);
-    cairo_set_line_width(cr, 2);
+    cairo_set_line_width(cr, 1);
 
     cairo_move_to(cr, p1.x, p1.y);
     cairo_line_to(cr, p2.x, p2.y);
@@ -208,6 +188,7 @@ void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
         p2d[i].y = (p3d[i].z-origin.z)/(p3d[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
     }
 
+    cairo_set_source_rgb(cr, 1, 1, 1);
     for(int i = 0; i < 8; i++) {
         for(int j = i; j < 8; j++) {
             if(i == j) continue;
@@ -215,8 +196,18 @@ void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
             draw_stroke(cr,p2d[i],p2d[j]);
         }
     }
+};
 
+void draw_faces(cairo_t *cr, Cube cube) {
+    Point3D * p3d = getCubePoints(cube.p,cube.length,cube.pitch,cube.yaw,cube.roll);
+    Point2D p2d[8];
     Point3D p_temp[4];
+
+    for(int i = 0; i < 8; i++) {
+        p2d[i].x = (p3d[i].y-origin.y)/(p3d[i].x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
+        p2d[i].y = (p3d[i].z-origin.z)/(p3d[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+    }
+
     for(int i = 0; i < 2; i++) {
         for(int j = 0; j < 4; j++) {
             p_temp[j] = p3d[i+j*2];
@@ -238,23 +229,9 @@ void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
             p_temp[3] = p3d[2*i+5];
         draw_face(cr,origin,cube.p,p_temp);
     }
-};
+}
 
-/*void draw_cube(GtkWidget *widget, cairo_t *cr, gpointer data) {
-    Point3D * points = getCubePoints(cube.p,cube.length,cube.pitch,cube.yaw,cube.roll);
-    if(cube.roll < M_PI/2 || cube.roll > 3*M_PI/2) {
-        draw_face(widget, cr, data, cube.roll);
-    }
-    if(cube.roll < M_PI) {
-        draw_face(widget, cr, data, cube.roll-M_PI/2);
-    }
-    if(cube.roll > M_PI/2 && cube.roll < 3*M_PI/2) {
-        draw_face(widget, cr, data, cube.roll-M_PI);
-    }
-    if(cube.roll > M_PI) {
-        draw_face(widget, cr, data, cube.roll-3*M_PI/2);
-    }
-}*/static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
+static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
     if (event->button == 1) {
         g_print("Left mouse button pressed at (%f, %f)\n", event->x, event->y);
     }
@@ -300,8 +277,8 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     //cube.roll   = M_PI/15;
 
     if(cube.roll > M_PI*2) cube.roll -= M_PI*2;
-    //draw_cube(widget, cr, data);
-    draw_skeleton(widget, cr, data);
+    //draw_skeleton(widget, cr, data);
+    draw_faces(cr, cube);
     return FALSE;
 }
 
