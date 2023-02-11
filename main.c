@@ -12,6 +12,10 @@ typedef struct {
 } Point3D;
 
 typedef struct {
+    double x,y,z;
+} Vector;
+
+typedef struct {
     double x,y;
 } Point2D;
 
@@ -25,12 +29,48 @@ typedef struct {
 gboolean key_pressed[6] = {FALSE,FALSE,FALSE,FALSE, FALSE, FALSE};
 
 int xg = 1,yg = 1,wg = 1,hg = 1;
-int WINDOW_WIDTH = 2000, WINDOW_HEIGHT = 2000;
+int WINDOW_WIDTH = 1000, WINDOW_HEIGHT = 1000;
 double DISTANCE = 2000;
+int frames = 0;
+const int FPS = 60;
+double lasttime;
+time_t rawtime;
 
 Cube cube = {100,0,0, 0, 400,0,0};
 
 Point3D origin = {0,0,0};
+
+void print_point(Point3D point) {
+    printf("[%lf; %lf; %lf]\n", point.x, point.y, point.z);
+}
+
+Vector getVector(Point3D p1, Point3D p2) {
+    Vector v;
+    v.x = p2.x-p1.x;
+    v.y = p2.y-p1.y;
+    v.z = p2.z-p1.z;
+    return v;
+}
+
+double get_vector_length(Vector v) {
+    return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+}
+
+double dot_product(Vector v1, Vector v2) {
+    return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
+}
+
+Vector normalize_vector(Vector v) {
+    double length = get_vector_length(v);
+    v.x /= length;
+    v.y /= length;
+    v.z /= length;
+    return v;
+}
+
+double get_vector_angle(Vector v1, Vector v2) {
+    return acos( dot_product(v1,v2) / (get_vector_length(v1)*get_vector_length(v2)) );
+}
 
 Point3D * getCubePoints(Point3D center, double size, double pitch, double yaw, double roll) {
     static Point3D corners[8];
@@ -50,10 +90,10 @@ Point3D * getCubePoints(Point3D center, double size, double pitch, double yaw, d
         double y = (i & 2) ? halfSize : -halfSize;
         double z = (i & 4) ? halfSize : -halfSize;
 
-        double rotatedX = R[0][0] * x + R[0][1] * y + R[0][2] * z;
-        double rotatedY = R[1][0] * x + R[1][1] * y + R[1][2] * z;
+        double rotatedY = R[0][0] * x + R[0][1] * y + R[0][2] * z;
+        double rotatedX = R[1][0] * x + R[1][1] * y + R[1][2] * z;
         double rotatedZ = R[2][0] * x + R[2][1] * y + R[2][2] * z;
-
+ 
         corners[i].x = center.x + rotatedX;
         corners[i].y = center.y + rotatedY;
         corners[i].z = center.z + rotatedZ;
@@ -64,37 +104,87 @@ Point3D * getCubePoints(Point3D center, double size, double pitch, double yaw, d
 
 
 
-//void draw_face(GtkWidget *widget, cairo_t *cr, gpointer data, double roll) {
-//    if(roll < 0) roll += 2*M_PI;
-//    double cw = sin(roll+M_PI/16)*0.2;
-//    if(cw<0) cw=0;
-//    cairo_set_source_rgb(cr, cw+0.2, cw+0.2, cw+0.2);
-//    double x1,x2,x3,x4,y1,y2,y3,y4,ay1,ay2,ay3,ay4;
-//
-//    x1 = sin(roll+5*M_PI/4)* sqrt(2)/2*cube.length +400;
-//    x2 = sin(roll+3*M_PI/4)* sqrt(2)/2*cube.length +400;
-//    x3 = x2;
-//    x4 = x1;
-//
-//    double amax = atan((cube.length/2) / (d + cube.length * ((sqrt(2)+1)/2)));
-//    double amin = atan((cube.length/2) / (d + cube.length * ((sqrt(2)-1)/2)));
-//    ay1 = cos(roll+M_PI/4-M_PI)*(amax-amin)/2+(amin+amax)/2;
-//    ay2 = cos(roll-M_PI/4-M_PI)*(amax-amin)/2+(amin+amax)/2;
-//    ay3 = cos(roll-M_PI/4-M_PI)*(amax-amin)/2+(amin+amax)/2;
-//    ay4 = cos(roll+M_PI/4-M_PI)*(amax-amin)/2+(amin+amax)/2;
-//
-//    y1 = 400-tan(ay1)*d;
-//    y2 = 400-tan(ay2)*d;
-//    y3 = 400+tan(ay3)*d;
-//    y4 = 400+tan(ay4)*d;
-//
-//    cairo_move_to(cr, x1, y1);
-//    cairo_line_to(cr, x2, y2);
-//    cairo_line_to(cr, x3, y3);
-//    cairo_line_to(cr, x4, y4);
-//    cairo_close_path(cr);
-//    cairo_fill(cr);
-//}
+void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
+    if(get_vector_length(getVector(points[0], points[1])) > cube.length*1.1) {
+        Point3D tempP = points[1];
+        points[1] = points[2];
+        points[2] = tempP;
+    }
+    if(get_vector_length(getVector(points[1], points[2])) > cube.length*1.1) {
+        Point3D tempP = points[2];
+        points[2] = points[3];
+        points[3] = tempP;
+    }
+
+    Point3D center;
+    center.x = (points[0].x + points[1].x + points[2].x + points[3].x)/4;
+    center.y = (points[0].y + points[1].y + points[2].y + points[3].y)/4;
+    center.z = (points[0].z + points[1].z + points[2].z + points[3].z)/4;
+
+    Vector CoM2c;
+    CoM2c.x = center.x-CoM.x;
+    CoM2c.y = center.y-CoM.y;
+    CoM2c.z = center.z-CoM.z;
+    Vector o2c;
+    o2c.x = center.x-origin.x;
+    o2c.y = center.y-origin.y;
+    o2c.z = center.z-origin.z;
+
+    double a = get_vector_angle(CoM2c,o2c);
+    if(a < M_PI/2) return;
+
+    /*for(int i = 0; i < 4; i++) {
+        printf("%d: ", i);
+        print_point(points[i]);
+    }
+    print_point(CoM);
+    print_point(center);
+    printf("ANGLE: %lf\n\n", a);*/
+    
+    Point2D p2d[6];
+    p2d[0].x = (center.y-origin.y)/(center.x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
+    p2d[0].y = (center.z-origin.z)/(center.x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+
+    p2d[1].x = (CoM.y-origin.y)/(CoM.x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
+    p2d[1].y = (CoM.z-origin.z)/(CoM.x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+
+    for(int i = 0; i < 4; i++) {
+        p2d[i+2].x = (points[i].y-origin.y)/(points[i].x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
+        p2d[i+2].y = (points[i].z-origin.z)/(points[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+    }
+
+    cairo_set_source_rgb(cr, 0, 1, 0);
+    cairo_move_to(cr, p2d[5].x, p2d[5].y);
+    for(int i = 0; i < 3; i++) {
+        cairo_line_to(cr, p2d[i+2].x, p2d[i+2].y);
+    }
+    cairo_close_path(cr);
+    cairo_fill(cr);
+
+    cairo_move_to(cr, p2d[5].x, p2d[5].y);
+    for(int i = 0; i < 3; i++) {
+        cairo_line_to(cr, p2d[i+2].x, p2d[i+2].y);
+    }
+    cairo_close_path(cr);
+    cairo_fill(cr);
+
+
+    /*cairo_set_source_rgb(cr, 0, 1, 0);
+    cairo_move_to(cr, p2d[1].x, p2d[1].y);
+    cairo_line_to(cr, p2d[0].x, p2d[0].y);
+    cairo_stroke(cr);
+
+    for(int i = 0; i < 4; i++) {
+        p2d[i+2].x = (points[i].y-origin.y)/(points[i].x-origin.x) * DISTANCE + WINDOW_WIDTH/2;
+        p2d[i+2].y = (points[i].z-origin.z)/(points[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
+    }
+    for(int i = 2; i < 6; i++) {
+        cairo_set_source_rgb(cr, 1, (i-2)*0.25, (i-2)*0.25);
+        cairo_move_to(cr, p2d[1].x, p2d[1].y);
+        cairo_line_to(cr, p2d[i].x, p2d[i].y);
+        cairo_stroke(cr);
+    }*/
+}
 
 void draw_stroke(cairo_t *cr, Point2D p1, Point2D p2) {
     cairo_set_source_rgb(cr, 1, 1, 1);
@@ -122,6 +212,29 @@ void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
             draw_stroke(cr,p2d[i],p2d[j]);
         }
     }
+
+    Point3D p_temp[4];
+    for(int i = 0; i < 2; i++) {
+        for(int j = 0; j < 4; j++) {
+            p_temp[j] = p3d[i+j*2];
+        }
+        draw_face(cr,origin,cube.p,p_temp);
+    }
+
+    /*for(int i = 0; i < 2; i++) {
+        for(int j = 0; j < 4; j++) {
+            p_temp[j] = p3d[j+i*4];
+        }
+        draw_face(cr,origin,cube.p,p_temp);
+    }
+    
+    for(int i = 0; i < 2; i++) {
+            p_temp[0] = p3d[2*i+0];
+            p_temp[1] = p3d[2*i+1];
+            p_temp[2] = p3d[2*i+4];
+            p_temp[3] = p3d[2*i+5];
+        draw_face(cr,origin,cube.p,p_temp);
+    }*/
 };
 
 /*void draw_cube(GtkWidget *widget, cairo_t *cr, gpointer data) {
@@ -175,9 +288,14 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     if(WINDOW_WIDTH<WINDOW_HEIGHT) DISTANCE = WINDOW_WIDTH;
     else DISTANCE = WINDOW_HEIGHT;
 
-    cube.roll=M_PI/4;
-    cube.yaw += M_PI/200; //M_PI*sin(cube.roll);
-    //cube.pitch +=M_PI/200;// M_PI*2*cos(cube.roll);
+    //cube.pitch  += M_PI/200;
+    //cube.yaw    += M_PI/250;
+    cube.roll   += M_PI/200;
+    
+    cube.pitch  = M_PI/12;
+    //cube.yaw    = M_PI/4;
+    //cube.roll   = M_PI/15;
+
     if(cube.roll > M_PI*2) cube.roll -= M_PI*2;
     //draw_cube(widget, cr, data);
     draw_skeleton(widget, cr, data);
@@ -194,6 +312,14 @@ static gboolean on_timeout(gpointer data)
     if(key_pressed[4]) origin.z -= move;
     if(key_pressed[5]) origin.z += move;
 
+
+    rawtime = time(NULL);
+    if(rawtime != lasttime) {
+        printf("%d\n", frames);
+        frames = 0;
+    }
+    frames++;
+    lasttime = rawtime;
     GtkWidget *drawing_area = GTK_WIDGET(data);
     gtk_widget_queue_draw(drawing_area);
     return G_SOURCE_CONTINUE;
@@ -218,7 +344,7 @@ int main(int argc, char *argv[])
 
     gtk_container_add(GTK_CONTAINER(window), drawing_area);
     gtk_widget_show_all(window);
-    g_timeout_add(15, on_timeout, drawing_area);
+    g_timeout_add(1.0/FPS*1000.0, on_timeout, drawing_area);
     gtk_main();
 
     return 0;
