@@ -39,6 +39,7 @@ time_t rawtime;
 Cube cube = {100,0,0, 0, 400,0,0};
 
 Point3D origin = {0,0,0};
+Point3D lightsource = {0,1000,0};
 
 void print_point(Point3D point) {
     printf("[%lf; %lf; %lf]\n", point.x, point.y, point.z);
@@ -121,14 +122,9 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
     center.y = (points[0].y + points[1].y + points[2].y + points[3].y)/4;
     center.z = (points[0].z + points[1].z + points[2].z + points[3].z)/4;
 
-    Vector CoM2c;
-    CoM2c.x = center.x-CoM.x;
-    CoM2c.y = center.y-CoM.y;
-    CoM2c.z = center.z-CoM.z;
-    Vector o2c;
-    o2c.x = center.x-origin.x;
-    o2c.y = center.y-origin.y;
-    o2c.z = center.z-origin.z;
+    Vector CoM2c = getVector(CoM,center);
+    Vector o2c = getVector(origin,center);
+    Vector ls2c = getVector(lightsource,center);
 
     double a = get_vector_angle(CoM2c,o2c);
     if(a < M_PI/2) return;
@@ -153,7 +149,14 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
         p2d[i+2].y = (points[i].z-origin.z)/(points[i].x-origin.x) * DISTANCE + WINDOW_HEIGHT/2;
     }
 
-    cairo_set_source_rgb(cr, 0, 1, 0);
+    double a_ls = get_vector_angle(CoM2c, ls2c);
+    double light = 0.5;
+    if(a_ls > M_PI/2) {
+        light += cos(a_ls+M_PI)*0.4;
+        printf("%g\n",a_ls);    
+    }
+
+    cairo_set_source_rgb(cr, 0, light, 0);
     cairo_move_to(cr, p2d[5].x, p2d[5].y);
     for(int i = 0; i < 3; i++) {
         cairo_line_to(cr, p2d[i+2].x, p2d[i+2].y);
@@ -221,7 +224,7 @@ void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
         draw_face(cr,origin,cube.p,p_temp);
     }
 
-    /*for(int i = 0; i < 2; i++) {
+    for(int i = 0; i < 2; i++) {
         for(int j = 0; j < 4; j++) {
             p_temp[j] = p3d[j+i*4];
         }
@@ -234,7 +237,7 @@ void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
             p_temp[2] = p3d[2*i+4];
             p_temp[3] = p3d[2*i+5];
         draw_face(cr,origin,cube.p,p_temp);
-    }*/
+    }
 };
 
 /*void draw_cube(GtkWidget *widget, cairo_t *cr, gpointer data) {
@@ -289,7 +292,7 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     else DISTANCE = WINDOW_HEIGHT;
 
     //cube.pitch  += M_PI/200;
-    //cube.yaw    += M_PI/250;
+    cube.yaw    += M_PI/250;
     cube.roll   += M_PI/200;
     
     cube.pitch  = M_PI/12;
