@@ -34,13 +34,16 @@ const int FPS = 60;
 double lasttime;
 time_t rawtime;
 
-Cube cube = {100,0,0, 0, 400,0,0};
+Cube cube1 = {100, 0, 0, 0, 400, 0, 0};
+Cube cube2 = {100, M_PI/6, 0, 0, 1000, -1000, 0};
+Cube cube3 = {100, M_PI/5, 0, 0, -1000, 300, 0};
 
 //Point3D observer = {350,190,0};
 Point3D observer = {0,0,0};
 Point3D origin = {0,0,0};
-Vector looking = {1,0,0};
 Point3D lightsource = {0,-500,0};
+Vector looking = {1,0,0};
+gboolean overrotation = FALSE;
 
 
 void print_vector(Vector v) {
@@ -108,7 +111,6 @@ Point2D p3d_to_p2d(Point3D p3d) {
     Vector v3d = getVector(observer, p3d);
     Vector proj_p3d = get_vector_projection(v3d, looking);
     Vector observer_plane_xy = {0,0,0};
-    DISTANCE = 200;
 
     if(looking.x != 0 && looking.y != 0) {
         double observer_plane_y = - looking.x/looking.y;
@@ -121,62 +123,29 @@ Point2D p3d_to_p2d(Point3D p3d) {
     }
     Vector observer_plane_xyz = cross_product(looking,observer_plane_xy);
     Vector nadir = {p3d.x-proj_p3d.x, p3d.y-proj_p3d.y, p3d.z-proj_p3d.z};
-    print_point(observer);
-    print_vector(looking);
-    print_vector(observer_plane_xy);
-    print_vector(observer_plane_xyz);
-    printf("--\n");
-    print_point(p3d);
-    print_vector(proj_p3d);
-    print_vector(nadir);
-    printf("--\n");
 
-    Vector plane_proj_x = get_vector_projection(nadir,observer_plane_xy);
-    Vector plane_proj_y = get_vector_projection(nadir,observer_plane_xyz);
-    print_vector(plane_proj_x);
-    print_vector(plane_proj_y);
-    printf("--\n");
-
-    double a = 0;
     double s = 0;
     double nadir_length = get_vector_length(nadir);
     
     if(nadir_length != 0) {
-        a = get_vector_angle(observer_plane_xy,nadir);
-        printf("%lf°\n", get_vector_angle(observer_plane_xyz,nadir));
+        double a = get_vector_angle(v3d,looking);
         s = (DISTANCE/cos(a))/get_vector_length(v3d);
     }
-    
-    printf("%lf =  %lf / %lf ## a: %lf\n", s,(DISTANCE/cos(a)), get_vector_length(v3d), a);
 
-    p2d.y = s*sin(a) * DISTANCE + WINDOW_HEIGHT/2;
-    if(get_vector_angle(observer_plane_xyz,nadir) < M_PI/2){
-        if(get_vector_angle(observer_plane_xy,nadir) < M_PI/2){
-            p2d.x = fabs(s*cos(a)) * DISTANCE + WINDOW_WIDTH/2;
-            p2d.y = -fabs(s*sin(a)) * DISTANCE + WINDOW_HEIGHT/2;
-        } else {
-            p2d.x = -fabs(s*cos(a)) * DISTANCE + WINDOW_WIDTH/2;
-            p2d.y = -fabs(s*sin(a)) * DISTANCE + WINDOW_HEIGHT/2;
-        }
-    } else {
-        if(get_vector_angle(observer_plane_xy,nadir) < M_PI/2){
-            p2d.x = fabs(s*cos(a)) * DISTANCE + WINDOW_WIDTH/2;
-            p2d.y = fabs(s*sin(a)) * DISTANCE + WINDOW_HEIGHT/2;
-        } else {
-            p2d.x = -fabs(s*cos(a)) * DISTANCE + WINDOW_WIDTH/2;
-            p2d.y = fabs(s*sin(a)) * DISTANCE + WINDOW_HEIGHT/2;
-        }
-    }
+    Vector cross_point = scalar_multiplication(s,nadir);
+    Vector plane_proj_x = get_vector_projection(cross_point,observer_plane_xy);
+    Vector plane_proj_y = get_vector_projection(cross_point,observer_plane_xyz);
 
-    print_point2D(p2d);
+    if(get_vector_angle(observer_plane_xy,nadir) < M_PI/2)
+        p2d.x = get_vector_length(plane_proj_x) + WINDOW_WIDTH/2;
+    else
+        p2d.x = -get_vector_length(plane_proj_x) + WINDOW_WIDTH/2;
 
+    if(get_vector_angle(observer_plane_xyz,nadir) < M_PI/2)
+        p2d.y = get_vector_length(plane_proj_y) + WINDOW_HEIGHT/2;
+    else
+        p2d.y = -get_vector_length(plane_proj_y) + WINDOW_HEIGHT/2;
 
-
-
-    //p2d.x = (p3d.y-observer.y)/(p3d.x-observer.x) * DISTANCE + WINDOW_WIDTH/2;
-    //p2d.y = -(p3d.z-observer.z)/(p3d.x-observer.x) * DISTANCE + WINDOW_HEIGHT/2;
-    print_point2D(p2d);
-    printf("\n");
     return p2d;
 }
 
@@ -211,14 +180,22 @@ Point3D * getCubePoints(Point3D center, double size, double pitch, double yaw, d
 }
 
 
+void draw_stroke(cairo_t *cr, Point2D p1, Point2D p2) {
+    cairo_set_line_width(cr, 1);
+
+    cairo_move_to(cr, p1.x, p1.y);
+    cairo_line_to(cr, p2.x, p2.y);
+    cairo_stroke(cr);
+}
+
 
 void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
-    if(get_vector_length(getVector(points[0], points[1])) > cube.length*1.1) {
+    if(get_vector_length(getVector(points[0], points[1])) > cube1.length * 1.1) {
         Point3D tempP = points[1];
         points[1] = points[2];
         points[2] = tempP;
     }
-    if(get_vector_length(getVector(points[1], points[2])) > cube.length*1.1) {
+    if(get_vector_length(getVector(points[1], points[2])) > cube1.length * 1.1) {
         Point3D tempP = points[2];
         points[2] = points[3];
         points[3] = tempP;
@@ -251,10 +228,10 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
     double a_ls = get_vector_angle(CoM2c, ls2c);
     double light = 0.5;
     if(a_ls > M_PI/2) {
-        light += cos(a_ls+M_PI)*0.4;
+        light += cos(a_ls+M_PI)*0.3;
     }
 
-    cairo_set_source_rgb(cr, 0, light, 0);
+    cairo_set_source_rgb(cr, light/2-0.5, light, light/2-0.5);
     cairo_move_to(cr, p2d[5].x, p2d[5].y);
     for(int i = 0; i < 3; i++) {
         cairo_line_to(cr, p2d[i+2].x, p2d[i+2].y);
@@ -270,17 +247,9 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
     }
 }
 
-void draw_stroke(cairo_t *cr, Point2D p1, Point2D p2) {
-    cairo_set_line_width(cr, 1);
-
-    cairo_move_to(cr, p1.x, p1.y);
-    cairo_line_to(cr, p2.x, p2.y);
-    cairo_stroke(cr);
-}
-
 
 void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
-    Point3D * p3d = getCubePoints(cube.p,cube.length,cube.pitch,cube.yaw,cube.roll);
+    Point3D * p3d = getCubePoints(cube1.p, cube1.length, cube1.pitch, cube1.yaw, cube1.roll);
     Point2D p2d[8];
 
     for(int i = 0; i < 8; i++) {
@@ -363,23 +332,26 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     //lightsource = observer;
 
-    //cube.pitch  += M_PI/200;
-    //cube.yaw    += M_PI/250;
-    cube.roll   += M_PI/200;
+    //cube1.pitch  += M_PI/200;
+    cube1.yaw    += M_PI / 250;
+    cube1.roll   += M_PI / 200;
     
-    //cube.pitch  = M_PI/12;
-    //cube.yaw    = M_PI/4;
-    //cube.roll   = M_PI/15;
+    //cube1.pitch  = M_PI/12;
+    //cube1.yaw    = M_PI/4;
+    //cube1.roll   = M_PI/15;
 
-    if(cube.roll > M_PI*2) cube.roll -= M_PI*2;
+    if(cube1.roll > M_PI * 2) cube1.roll -= M_PI * 2;
     //draw_skeleton(widget, cr, data);
-    draw_faces(cr, cube);
+    draw_faces(cr, cube1);
+    draw_faces(cr, cube2);
+    draw_faces(cr, cube3);
     return FALSE;
 }
 
 static gboolean on_timeout(gpointer data)
 {
     double move = 2;
+    double rotate = M_PI/300;
     if(key_pressed[0]) observer.x += move;
     if(key_pressed[1]) observer.x -= move;
     if(key_pressed[2]) observer.y -= move;
@@ -387,9 +359,24 @@ static gboolean on_timeout(gpointer data)
     if(key_pressed[4]) observer.z -= move;
     if(key_pressed[5]) observer.z += move;
 
-    if(mouse_pressed[0]) printf("Left Mouse pressed\n");
-    if(mouse_pressed[1]) printf("Middle Mouse pressed\n");
-    if(mouse_pressed[2]) printf("Right Mouse pressed\n");
+    if(mouse_pressed[0]) {
+        double a = acos(looking.x);
+        if(overrotation == TRUE) a = 2*M_PI-a;
+        if(a-rotate < 0) {overrotation=TRUE; a+=M_PI*2;}
+        else if(overrotation == TRUE && a-rotate < M_PI) overrotation = FALSE;
+        if(a-rotate < M_PI) overrotation=FALSE;
+        looking.x = cos(a-rotate);
+        looking.y = sin(a-rotate);
+    }
+    if(mouse_pressed[2]) {
+        double a = acos(looking.x);
+        if(overrotation == TRUE) a = 2*M_PI-a;
+        if(a+rotate > M_PI) overrotation=TRUE;
+        else if(overrotation == TRUE && a+rotate > M_PI*2) overrotation = FALSE;
+        if(a+rotate > M_PI*2) {a -= M_PI*2; overrotation=FALSE;}
+        looking.x = cos(a+rotate);
+        looking.y = sin(a+rotate);
+    }
 
     rawtime = time(NULL);
     if(rawtime != lasttime) {
