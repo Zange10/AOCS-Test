@@ -111,9 +111,10 @@ Point2D p3d_to_p2d(Point3D p3d) {
     Vector v3d = getVector(observer, p3d);
     Vector proj_p3d = get_vector_projection(v3d, looking);
     Vector observer_plane_xy = {0,0,0};
+    double observer_plane_y = 0;
 
     if(looking.x != 0 && looking.y != 0) {
-        double observer_plane_y = - looking.x/looking.y;
+        observer_plane_y = -looking.x/looking.y;
         observer_plane_xy.x = 1;
         observer_plane_xy.y = observer_plane_y;
     } else if (looking.x == 0) {
@@ -132,6 +133,7 @@ Point2D p3d_to_p2d(Point3D p3d) {
         s = (DISTANCE/cos(a))/get_vector_length(v3d);
     }
 
+
     Vector cross_point = scalar_multiplication(s,nadir);
     Vector plane_proj_x = get_vector_projection(cross_point,observer_plane_xy);
     Vector plane_proj_y = get_vector_projection(cross_point,observer_plane_xyz);
@@ -145,6 +147,12 @@ Point2D p3d_to_p2d(Point3D p3d) {
         p2d.y = get_vector_length(plane_proj_y) + WINDOW_HEIGHT/2;
     else
         p2d.y = -get_vector_length(plane_proj_y) + WINDOW_HEIGHT/2;
+
+    // if looking to right half everything mirrors because it does dont ask (looking vector...)
+    if(looking.y > 0) {
+        p2d.x = -(p2d.x - WINDOW_WIDTH/2) + WINDOW_WIDTH/2;
+        p2d.y = -(p2d.y - WINDOW_HEIGHT/2) + WINDOW_HEIGHT/2;
+    }
 
     return p2d;
 }
@@ -333,12 +341,12 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     //lightsource = observer;
 
     //cube1.pitch  += M_PI/200;
-    cube1.yaw    += M_PI / 250;
-    cube1.roll   += M_PI / 200;
+    //cube1.yaw    += M_PI / 250;
+    //cube1.roll   += M_PI / 200;
     
-    //cube1.pitch  = M_PI/12;
+    cube1.pitch  = M_PI/12;
     //cube1.yaw    = M_PI/4;
-    //cube1.roll   = M_PI/15;
+    cube1.roll   = M_PI/15;
 
     if(cube1.roll > M_PI * 2) cube1.roll -= M_PI * 2;
     //draw_skeleton(widget, cr, data);
@@ -351,7 +359,7 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 static gboolean on_timeout(gpointer data)
 {
     double move = 2;
-    double rotate = M_PI/300;
+    double rotate = M_PI/500;
     if(key_pressed[0]) observer.x += move;
     if(key_pressed[1]) observer.x -= move;
     if(key_pressed[2]) observer.y -= move;
