@@ -22,7 +22,7 @@ typedef struct {
 } Cube;
 
 
-gboolean key_pressed[6] = {FALSE,FALSE,FALSE,FALSE, FALSE, FALSE};
+gboolean key_pressed[8] = {FALSE,FALSE,FALSE,FALSE, FALSE, FALSE, FALSE, FALSE};
 gboolean mouse_pressed[3] = {FALSE,FALSE,FALSE};
 
 int xg = 1,yg = 1,wg = 1,hg = 1;
@@ -111,19 +111,18 @@ Point2D p3d_to_p2d(Point3D p3d) {
     Vector v3d = getVector(observer, p3d);
     Vector proj_p3d = get_vector_projection(v3d, looking);
     Vector observer_plane_xy = {0,0,0};
-    double observer_plane_y = 0;
-
     if(looking.x != 0 && looking.y != 0) {
-        observer_plane_y = -looking.x/looking.y;
         observer_plane_xy.x = 1;
-        observer_plane_xy.y = observer_plane_y;
+        observer_plane_xy.y = -looking.x/looking.y;
     } else if (looking.x == 0) {
         observer_plane_xy.x = 1;
     } else if (looking.y == 0) {
         observer_plane_xy.y = 1;
     }
     Vector observer_plane_xyz = cross_product(looking,observer_plane_xy);
-    Vector nadir = {p3d.x-proj_p3d.x, p3d.y-proj_p3d.y, p3d.z-proj_p3d.z};
+    Vector nadir = {p3d.x-proj_p3d.x-observer.x,
+                    p3d.y-proj_p3d.y-observer.y,
+                    p3d.z-proj_p3d.z-observer.z};
 
     double s = 0;
     double nadir_length = get_vector_length(nadir);
@@ -309,22 +308,26 @@ void on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer user_d
 }
 
 static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
-    if(event->keyval == GDK_KEY_w) key_pressed[0] = TRUE;
-    if(event->keyval == GDK_KEY_s) key_pressed[1] = TRUE;
-    if(event->keyval == GDK_KEY_a) key_pressed[2] = TRUE;
-    if(event->keyval == GDK_KEY_d) key_pressed[3] = TRUE;
-    if(event->keyval == GDK_KEY_q) key_pressed[4] = TRUE;
-    if(event->keyval == GDK_KEY_e) key_pressed[5] = TRUE;
+    if(event->keyval == GDK_KEY_w || event -> keyval == GDK_KEY_W) key_pressed[0] = TRUE;
+    if(event->keyval == GDK_KEY_s || event -> keyval == GDK_KEY_S) key_pressed[1] = TRUE;
+    if(event->keyval == GDK_KEY_a || event -> keyval == GDK_KEY_A) key_pressed[2] = TRUE;
+    if(event->keyval == GDK_KEY_d || event -> keyval == GDK_KEY_D) key_pressed[3] = TRUE;
+    if(event->keyval == GDK_KEY_q || event -> keyval == GDK_KEY_Q) key_pressed[4] = TRUE;
+    if(event->keyval == GDK_KEY_e || event -> keyval == GDK_KEY_E) key_pressed[5] = TRUE;
+    if(event->keyval == GDK_KEY_Shift_L) key_pressed[6] = TRUE;
+    if(event->keyval == GDK_KEY_Control_L) key_pressed[7] = TRUE;
     return TRUE;
 }
 
 gboolean key_release_callback(GtkWidget *widget, GdkEventKey *event, gpointer data) {
-    if(event->keyval == GDK_KEY_w) key_pressed[0] = FALSE;
-    if(event->keyval == GDK_KEY_s) key_pressed[1] = FALSE;
-    if(event->keyval == GDK_KEY_a) key_pressed[2] = FALSE;
-    if(event->keyval == GDK_KEY_d) key_pressed[3] = FALSE;
-    if(event->keyval == GDK_KEY_q) key_pressed[4] = FALSE;
-    if(event->keyval == GDK_KEY_e) key_pressed[5] = FALSE;
+    if(event->keyval == GDK_KEY_w || event -> keyval == GDK_KEY_W) key_pressed[0] = FALSE;
+    if(event->keyval == GDK_KEY_s || event -> keyval == GDK_KEY_S) key_pressed[1] = FALSE;
+    if(event->keyval == GDK_KEY_a || event -> keyval == GDK_KEY_A) key_pressed[2] = FALSE;
+    if(event->keyval == GDK_KEY_d || event -> keyval == GDK_KEY_D) key_pressed[3] = FALSE;
+    if(event->keyval == GDK_KEY_q || event -> keyval == GDK_KEY_Q) key_pressed[4] = FALSE;
+    if(event->keyval == GDK_KEY_e || event -> keyval == GDK_KEY_E) key_pressed[5] = FALSE;
+    if(event->keyval == GDK_KEY_Shift_L) key_pressed[6] = FALSE;
+    if(event->keyval == GDK_KEY_Control_L) key_pressed[7] = FALSE;
     return TRUE;
 }
 
@@ -340,34 +343,51 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     //lightsource = observer;
 
-    //cube1.pitch  += M_PI/200;
-    //cube1.yaw    += M_PI / 250;
-    //cube1.roll   += M_PI / 200;
+    cube1.pitch  += M_PI/200;
+    cube1.yaw    += M_PI / 250;
+    cube2.roll   += M_PI / 200;
+    cube3.yaw    += M_PI / 250;
     
-    cube1.pitch  = M_PI/12;
+    //cube1.pitch  = M_PI/12;
     //cube1.yaw    = M_PI/4;
-    cube1.roll   = M_PI/15;
+    //cube1.roll   = M_PI/15;
 
     if(cube1.roll > M_PI * 2) cube1.roll -= M_PI * 2;
     //draw_skeleton(widget, cr, data);
-    draw_faces(cr, cube1);
-    draw_faces(cr, cube2);
     draw_faces(cr, cube3);
+    draw_faces(cr, cube2);
+    draw_faces(cr, cube1);
     return FALSE;
 }
 
-static gboolean on_timeout(gpointer data)
-{
-    double move = 2;
-    double rotate = M_PI/500;
-    if(key_pressed[0]) observer.x += move;
-    if(key_pressed[1]) observer.x -= move;
-    if(key_pressed[2]) observer.y -= move;
-    if(key_pressed[3]) observer.y += move;
-    if(key_pressed[4]) observer.z -= move;
-    if(key_pressed[5]) observer.z += move;
+void move() {
+    double a = acos(looking.x);
+    if(overrotation == TRUE) a = 2*M_PI-a;
 
-    if(mouse_pressed[0]) {
+    double move = 2;
+    if(key_pressed[0]) {
+        observer.x += move*looking.x;
+        observer.y += move*looking.y;
+    }
+    if(key_pressed[1]) {
+        observer.x -= move*looking.x;
+        observer.y -= move*looking.y;
+    }
+    if(key_pressed[2]) {
+        observer.x += move*cos(a-M_PI/2);
+        observer.y += move*sin(a-M_PI/2);
+    }
+    if(key_pressed[3]) {
+        observer.x -= move*cos(a-M_PI/2);
+        observer.y -= move*sin(a-M_PI/2);
+    }
+    if(key_pressed[6]) observer.z -= move;
+    if(key_pressed[7]) observer.z += move;
+}
+
+void rotate() {
+    double rotate = M_PI/200;
+    if(key_pressed[4]) {
         double a = acos(looking.x);
         if(overrotation == TRUE) a = 2*M_PI-a;
         if(a-rotate < 0) {overrotation=TRUE; a+=M_PI*2;}
@@ -376,7 +396,7 @@ static gboolean on_timeout(gpointer data)
         looking.x = cos(a-rotate);
         looking.y = sin(a-rotate);
     }
-    if(mouse_pressed[2]) {
+    if(key_pressed[5]) {
         double a = acos(looking.x);
         if(overrotation == TRUE) a = 2*M_PI-a;
         if(a+rotate > M_PI) overrotation=TRUE;
@@ -385,6 +405,12 @@ static gboolean on_timeout(gpointer data)
         looking.x = cos(a+rotate);
         looking.y = sin(a+rotate);
     }
+}
+
+static gboolean on_timeout(gpointer data)
+{
+    move();
+    rotate();
 
     rawtime = time(NULL);
     if(rawtime != lasttime) {
