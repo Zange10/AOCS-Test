@@ -41,8 +41,10 @@ Cube cube3 = {100, M_PI/5, 0, 0, -1000, 300, 0};
 //Point3D observer = {350,190,0};
 Point3D observer = {0,0,0};
 Point3D origin = {0,0,0};
-Point3D lightsource = {0,-500,0};
+Point3D lightsource = {0,-5000000,0};
 Vector looking = {1,0,0};
+//Vector looking = {-0.392683,-0.91388,0};
+//Vector looking = {1,0,0};
 gboolean overrotation = FALSE;
 
 
@@ -103,7 +105,10 @@ Vector normalize_vector(Vector v) {
 }
 
 double get_vector_angle(Vector v1, Vector v2) {
-    return acos( dot_product(v1,v2) / (get_vector_length(v1)*get_vector_length(v2)) );
+    double quotient = dot_product(v1,v2) / (get_vector_length(v1)*get_vector_length(v2));
+    if(quotient > 1) quotient = 1;  // catch 1.0000001...
+    else if(quotient < -1) quotient = -1;   // catch -1.0000001...
+    return acos( quotient );
 }
 
 Point2D p3d_to_p2d(Point3D p3d) {
@@ -298,6 +303,16 @@ void draw_faces(cairo_t *cr, Cube cube) {
     }
 }
 
+void draw_lightsource(cairo_t *cr) {
+    double a_looking = get_vector_angle(getVector(observer,lightsource),looking);
+    if(a_looking > M_PI/2) return;
+    Point2D p2d = p3d_to_p2d(lightsource);
+    cairo_set_source_rgb(cr, 1, 1, 0.3);
+    double radius = 100000000/(get_vector_length(getVector(observer,lightsource)));
+    cairo_arc(cr,p2d.x,p2d.y,radius,0,M_PI*2);
+    cairo_fill(cr);
+}
+
 static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
     mouse_pressed[event->button-1] = TRUE;
     return FALSE;
@@ -331,7 +346,6 @@ gboolean key_release_callback(GtkWidget *widget, GdkEventKey *event, gpointer da
     return TRUE;
 }
 
-
 static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
     GtkAllocation allocation;
@@ -340,6 +354,7 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     WINDOW_HEIGHT = allocation.height;
     if(WINDOW_WIDTH<WINDOW_HEIGHT) DISTANCE = WINDOW_WIDTH;
     else DISTANCE = WINDOW_HEIGHT;
+
 
     //lightsource = observer;
 
@@ -354,8 +369,9 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     if(cube1.roll > M_PI * 2) cube1.roll -= M_PI * 2;
     //draw_skeleton(widget, cr, data);
-    draw_faces(cr, cube3);
-    draw_faces(cr, cube2);
+    draw_lightsource(cr);
+    //draw_faces(cr, cube3);
+    //draw_faces(cr, cube2);
     draw_faces(cr, cube1);
     return FALSE;
 }
@@ -364,7 +380,7 @@ void move() {
     double a = acos(looking.x);
     if(overrotation == TRUE) a = 2*M_PI-a;
 
-    double move = 2;
+    double move = 5;
     if(key_pressed[0]) {
         observer.x += move*looking.x;
         observer.y += move*looking.y;
@@ -387,8 +403,9 @@ void move() {
 
 void rotate() {
     double rotate = M_PI/200;
+
     if(key_pressed[4]) {
-        double a = acos(looking.x);
+        double a = acos((looking.x)/sqrt(looking.x*looking.x+looking.y*looking.y));
         if(overrotation == TRUE) a = 2*M_PI-a;
         if(a-rotate < 0) {overrotation=TRUE; a+=M_PI*2;}
         else if(overrotation == TRUE && a-rotate < M_PI) overrotation = FALSE;
@@ -397,7 +414,7 @@ void rotate() {
         looking.y = sin(a-rotate);
     }
     if(key_pressed[5]) {
-        double a = acos(looking.x);
+        double a = acos((looking.x)/sqrt(looking.x*looking.x+looking.y*looking.y));
         if(overrotation == TRUE) a = 2*M_PI-a;
         if(a+rotate > M_PI) overrotation=TRUE;
         else if(overrotation == TRUE && a+rotate > M_PI*2) overrotation = FALSE;
