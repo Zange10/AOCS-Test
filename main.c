@@ -307,7 +307,14 @@ void draw_lightsource(cairo_t *cr) {
     double a_looking = get_vector_angle(getVector(observer,lightsource),looking);
     if(a_looking > M_PI/2) return;
     Point2D p2d = p3d_to_p2d(lightsource);
-    cairo_set_source_rgb(cr, 1, 1, 0.3);
+    double amt_of_rays = 150;
+    for(int i = 0; i < amt_of_rays; i++) {
+        cairo_set_source_rgba(cr, 1, 1, 1,(pow(i,4))/(pow(amt_of_rays,4)*1.4));
+        double radius = (90000000.0*(-7*i/amt_of_rays+8.0))/(get_vector_length(getVector(observer,lightsource)));
+        cairo_arc(cr,p2d.x,p2d.y,radius,0,M_PI*2);
+        cairo_stroke(cr);
+    }
+    cairo_set_source_rgb(cr, 1, 1, 1);
     double radius = 100000000/(get_vector_length(getVector(observer,lightsource)));
     cairo_arc(cr,p2d.x,p2d.y,radius,0,M_PI*2);
     cairo_fill(cr);
@@ -355,23 +362,26 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     if(WINDOW_WIDTH<WINDOW_HEIGHT) DISTANCE = WINDOW_WIDTH;
     else DISTANCE = WINDOW_HEIGHT;
 
+    cairo_rectangle(cr,0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
+    cairo_set_source_rgb(cr, 0,0,0);
+    cairo_fill(cr);
 
     //lightsource = observer;
 
-    cube1.pitch  += M_PI/200;
+    //cube1.pitch  += M_PI/200;
+    //cube1.roll    += M_PI / 250;
+    //cube2.roll   += M_PI / 200;
     cube1.yaw    += M_PI / 250;
-    cube2.roll   += M_PI / 200;
-    cube3.yaw    += M_PI / 250;
     
-    //cube1.pitch  = M_PI/12;
+    //cube1.pitch  = M_PI/6;
     //cube1.yaw    = M_PI/4;
-    //cube1.roll   = M_PI/15;
+    cube1.roll   = M_PI/4;
 
     if(cube1.roll > M_PI * 2) cube1.roll -= M_PI * 2;
     //draw_skeleton(widget, cr, data);
     draw_lightsource(cr);
-    //draw_faces(cr, cube3);
-    //draw_faces(cr, cube2);
+    draw_faces(cr, cube3);
+    draw_faces(cr, cube2);
     draw_faces(cr, cube1);
     return FALSE;
 }
