@@ -16,6 +16,10 @@ typedef struct {
 } Point2D;
 
 typedef struct {
+    int x,y;
+} Point2D_i;
+
+typedef struct {
     int length;
     double pitch, yaw, roll;
     Point3D p;
@@ -24,6 +28,7 @@ typedef struct {
 
 gboolean key_pressed[8] = {FALSE,FALSE,FALSE,FALSE, FALSE, FALSE, FALSE, FALSE};
 gboolean mouse_pressed[3] = {FALSE,FALSE,FALSE};
+gboolean mouse_visible = TRUE;
 
 int xg = 1,yg = 1,wg = 1,hg = 1;
 int WINDOW_WIDTH = 1000, WINDOW_HEIGHT = 1000;
@@ -47,6 +52,9 @@ Vector looking = {1,0,0};
 //Vector looking = {1,0,0};
 gboolean overrotation = FALSE;
 
+double rad2deg(double rad) {
+    return rad/(2*M_PI) * 360;
+}
 
 void print_vector(Vector v) {
     printf("[%lf; %lf; %lf]\n", v.x, v.y, v.z);
@@ -353,39 +361,6 @@ gboolean key_release_callback(GtkWidget *widget, GdkEventKey *event, gpointer da
     return TRUE;
 }
 
-static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
-{
-    GtkAllocation allocation;
-    gtk_widget_get_allocation(widget, &allocation);
-    WINDOW_WIDTH = allocation.width;
-    WINDOW_HEIGHT = allocation.height;
-    if(WINDOW_WIDTH<WINDOW_HEIGHT) DISTANCE = WINDOW_WIDTH;
-    else DISTANCE = WINDOW_HEIGHT;
-
-    cairo_rectangle(cr,0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
-    cairo_set_source_rgb(cr, 0,0,0);
-    cairo_fill(cr);
-
-    //lightsource = observer;
-
-    //cube1.pitch  += M_PI/200;
-    //cube1.roll    += M_PI / 250;
-    //cube2.roll   += M_PI / 200;
-    cube1.yaw    += M_PI / 250;
-    
-    //cube1.pitch  = M_PI/6;
-    //cube1.yaw    = M_PI/4;
-    cube1.roll   = M_PI/4;
-
-    if(cube1.roll > M_PI * 2) cube1.roll -= M_PI * 2;
-    //draw_skeleton(widget, cr, data);
-    draw_lightsource(cr);
-    draw_faces(cr, cube3);
-    draw_faces(cr, cube2);
-    draw_faces(cr, cube1);
-    return FALSE;
-}
-
 void move() {
     double a = acos(looking.x);
     if(overrotation == TRUE) a = 2*M_PI-a;
@@ -411,7 +386,24 @@ void move() {
     if(key_pressed[7]) observer.z += move;
 }
 
-void rotate() {
+Point2D_i get_mouse_pos(GtkWidget *widget) {
+    int win_x, win_y;
+    GtkWindow *gtk_window;
+    gtk_window = GTK_WINDOW(gtk_widget_get_toplevel(widget));
+    gtk_window_get_position(gtk_window, &win_x, &win_y);
+
+    int x, y;
+    GdkDisplay* display = gdk_display_get_default();
+    GdkSeat* seat = gdk_display_get_default_seat(display);
+    GdkDevice* pointer = gdk_seat_get_pointer(seat);
+    gdk_device_get_position (pointer, NULL, &x, &y);
+    x -= win_x;
+    y -= win_y;
+    Point2D_i p = {x,y};
+    return p;
+}
+
+void rotate(GtkWidget *widget) {
     double rotate = M_PI/200;
 
     if(key_pressed[4]) {
@@ -432,13 +424,102 @@ void rotate() {
         looking.x = cos(a+rotate);
         looking.y = sin(a+rotate);
     }
+    if(mouse_pressed[2]) {
+
+        Point2D_i mouse = get_mouse_pos(widget);
+        double rotate_xy = (((double)mouse.x-(double)WINDOW_WIDTH/2)*(double)WINDOW_WIDTH)/(2500*(double)WINDOW_WIDTH);
+        double rotate_z  = -(((double)mouse.y-(double)WINDOW_HEIGHT/2)*(double)WINDOW_HEIGHT)/(2500*(double)WINDOW_HEIGHT);
+
+        double a_xy = acos((looking.x) / sqrt(pow(looking.x, 2) + pow(looking.y, 2)));
+        double a_z = acos(looking.z/sqrt(pow(looking.x, 2) + pow(looking.y, 2)));
+        if(overrotation == TRUE) a_xy = 2 * M_PI - a_xy;
+
+        if(a_xy + rotate_xy < 0) { overrotation=TRUE; a_xy+= M_PI * 2;}
+        else if(a_xy + rotate_xy > 2 * M_PI) { overrotation=FALSE; a_xy-= 2 * M_PI;}
+        else if(overrotation == TRUE && a_xy + rotate_xy < M_PI) overrotation = FALSE;
+        else if(a_xy + rotate_xy > M_PI && overrotation == FALSE) overrotation=TRUE;
+
+        looking.x = cos(a_xy + rotate_xy);
+        looking.y = sin(a_xy + rotate_xy);
+
+       //if(a_z+rotate_z < M_PI/1000) rotate_z = -(a_z-M_PI/1000);
+        //else if(a_z+rotate_z > M_PI-M_PI/1000) rotate_z = (M_PI-M_PI/1000)-a_z;
+
+        looking.z = cos(a_z+rotate_z);
+        looking = normalize_vector(looking);
+        print_vector(looking);
+
+
+        int x, y;
+        GtkWindow *gtk_window;
+        gtk_window = GTK_WINDOW(gtk_widget_get_toplevel(widget));
+        gtk_window_get_position(gtk_window, &x, &y);
+
+        GdkDisplay *display = gdk_display_get_default();
+        GdkSeat *seat = gdk_display_get_default_seat(display);
+        GdkDevice *pointer = gdk_seat_get_pointer(seat);
+        GdkScreen *screen;
+        screen = gdk_screen_get_default();
+
+
+        gdk_device_warp(pointer, screen, x+WINDOW_WIDTH/2, y+WINDOW_HEIGHT/2);
+        if(mouse_visible == TRUE) {
+            GdkCursor *cursor;
+
+            display = gdk_display_get_default();
+            cursor = gdk_cursor_new_for_display(display, GDK_BLANK_CURSOR);
+            gdk_window_set_cursor(gtk_widget_get_window(widget), cursor);
+            mouse_visible = FALSE;
+        }
+    } else if(mouse_visible == FALSE) {
+        GdkDisplay *display;
+        GdkCursor *cursor;
+
+        display = gdk_display_get_default();
+        cursor = gdk_cursor_new_for_display(display, GDK_LEFT_PTR);
+        gdk_window_set_cursor(gtk_widget_get_window(widget), cursor);
+        mouse_visible = TRUE;
+    }
 }
 
-static gboolean on_timeout(gpointer data)
+static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
-    move();
-    rotate();
+    GtkAllocation allocation;
+    gtk_widget_get_allocation(widget, &allocation);
+    WINDOW_WIDTH = allocation.width;
+    WINDOW_HEIGHT = allocation.height;
+    if(WINDOW_WIDTH<WINDOW_HEIGHT) DISTANCE = WINDOW_WIDTH;
+    else DISTANCE = WINDOW_HEIGHT;
 
+    cairo_rectangle(cr,0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
+    cairo_set_source_rgb(cr, 0,0,0);
+    cairo_fill(cr);
+
+    //lightsource = observer;
+
+    //cube1.pitch  += M_PI/250;
+    //cube1.roll   -= M_PI / 250;
+    //cube1.yaw    += M_PI / 250;
+    //cube2.roll   += M_PI / 200;
+
+    //cube1.pitch  = M_PI/6;
+    //cube1.yaw    = M_PI/4;
+    //cube1.roll   = M_PI/4;
+
+    if(cube1.roll > M_PI * 2) cube1.roll -= M_PI * 2;
+    //draw_skeleton(widget, cr, data);
+    draw_lightsource(cr);
+    draw_faces(cr, cube3);
+    draw_faces(cr, cube2);
+    draw_faces(cr, cube1);
+
+    move();
+    rotate(widget);
+
+    return FALSE;
+}
+
+static gboolean on_timeout(gpointer data) {
     rawtime = time(NULL);
     if(rawtime != lasttime) {
         printf("%d\n", frames);
@@ -451,8 +532,7 @@ static gboolean on_timeout(gpointer data)
     return G_SOURCE_CONTINUE;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     GtkWidget *window, *drawing_area;
 
     gtk_init(&argc, &argv);
