@@ -2,33 +2,15 @@
 #include <cairo.h>
 #include <time.h>
 #include <math.h>
+//#include "geometry.h"
+#include "movement.h"
+
 
 typedef struct {
-    double x,y,z;
-} Point3D;
-
-typedef struct {
-    double x,y,z;
-} Vector;
-
-typedef struct {
-    double x,y;
-} Point2D;
-
-typedef struct {
-    int x,y;
-} Point2D_i;
-
-typedef struct {
-    int length;
+    double length;
     double pitch, yaw, roll;
     Point3D p;
 } Cube;
-
-
-gboolean key_pressed[8] = {FALSE,FALSE,FALSE,FALSE, FALSE, FALSE, FALSE, FALSE};
-gboolean mouse_pressed[3] = {FALSE,FALSE,FALSE};
-gboolean mouse_visible = TRUE;
 
 int xg = 1,yg = 1,wg = 1,hg = 1;
 int WINDOW_WIDTH = 1000, WINDOW_HEIGHT = 1000;
@@ -45,79 +27,11 @@ Cube cube3 = {100, M_PI/5, 0, 0, -1000, 300, 0};
 
 //Point3D observer = {350,190,0};
 Point3D observer = {0,0,0};
-Point3D origin = {0,0,0};
-Point3D lightsource = {0,-5000000,0};
+Point3D lightsource = {0,-150000000,0};
 Vector looking = {1,0,0};
 //Vector looking = {-0.392683,-0.91388,0};
 //Vector looking = {1,0,0};
-gboolean overrotation = FALSE;
 
-double rad2deg(double rad) {
-    return rad/(2*M_PI) * 360;
-}
-
-void print_vector(Vector v) {
-    printf("[%lf; %lf; %lf]\n", v.x, v.y, v.z);
-}
-void print_point(Point3D point) {
-    printf("[%lf; %lf; %lf]\n", point.x, point.y, point.z);
-}
-void print_point2D(Point2D point) {
-    printf("[%lf; %lf]\n", point.x, point.y);
-}
-
-Vector getVector(Point3D p1, Point3D p2) {
-    Vector v;
-    v.x = p2.x-p1.x;
-    v.y = p2.y-p1.y;
-    v.z = p2.z-p1.z;
-    return v;
-}
-
-double get_vector_length(Vector v) {
-    return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
-}
-
-double dot_product(Vector v1, Vector v2) {
-    return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z;
-}
-
-Vector cross_product(Vector v1, Vector v2) {
-    Vector v;
-    v.x = v1.y*v2.z-v1.z*v2.y;
-    v.y = v1.z*v2.x-v1.x*v2.z;
-    v.z = v1.x*v2.y-v1.y*v2.x;
-    return v;
-}
-
-Vector scalar_multiplication(double s, Vector v) {
-    v.x *= s;
-    v.y *= s;
-    v.z *= s;
-    return v;
-}
-
-// v1 on v2
-Vector get_vector_projection(Vector v1, Vector v2) {
-    double v2_length = get_vector_length(v2);
-    double scalar = dot_product(v1, v2) / (v2_length*v2_length);
-    return scalar_multiplication(scalar, v2);
-}
-
-Vector normalize_vector(Vector v) {
-    double length = get_vector_length(v);
-    v.x /= length;
-    v.y /= length;
-    v.z /= length;
-    return v;
-}
-
-double get_vector_angle(Vector v1, Vector v2) {
-    double quotient = dot_product(v1,v2) / (get_vector_length(v1)*get_vector_length(v2));
-    if(quotient > 1) quotient = 1;  // catch 1.0000001...
-    else if(quotient < -1) quotient = -1;   // catch -1.0000001...
-    return acos( quotient );
-}
 
 Point2D p3d_to_p2d(Point3D p3d) {
     Point2D p2d;
@@ -139,7 +53,7 @@ Point2D p3d_to_p2d(Point3D p3d) {
 
     double s = 0;
     double nadir_length = get_vector_length(nadir);
-    
+
     if(nadir_length != 0) {
         double a = get_vector_angle(v3d,looking);
         s = (DISTANCE/cos(a))/get_vector_length(v3d);
@@ -160,7 +74,7 @@ Point2D p3d_to_p2d(Point3D p3d) {
     else
         p2d.y = -get_vector_length(plane_proj_y) + WINDOW_HEIGHT/2;
 
-    // if looking to right half everything mirrors because it does dont ask (looking vector...)
+    // if looking to right half everything mirrors because it does don't ask (looking vector...)
     if(looking.y > 0) {
         p2d.x = -(p2d.x - WINDOW_WIDTH/2) + WINDOW_WIDTH/2;
         p2d.y = -(p2d.y - WINDOW_HEIGHT/2) + WINDOW_HEIGHT/2;
@@ -233,7 +147,7 @@ void draw_face(cairo_t *cr, Point3D observer, Point3D CoM, Point3D points[4]) {
     double a = get_vector_angle(CoM2c,o2c);
     double a_looking = get_vector_angle(o2c,looking);
     if(a < M_PI/2 || a_looking > M_PI/2) return;
-    
+
     Point2D p2d[6];
     p2d[0] = p3d_to_p2d(center);
     p2d[1] = p3d_to_p2d(CoM);
@@ -301,7 +215,7 @@ void draw_faces(cairo_t *cr, Cube cube) {
         }
         draw_face(cr,observer,cube.p,p_temp);
     }
-    
+
     for(int i = 0; i < 2; i++) {
             p_temp[0] = p3d[2*i+0];
             p_temp[1] = p3d[2*i+1];
@@ -317,170 +231,37 @@ void draw_lightsource(cairo_t *cr) {
     Point2D p2d = p3d_to_p2d(lightsource);
     double amt_of_rays = 150;
     for(int i = 0; i < amt_of_rays; i++) {
-        cairo_set_source_rgba(cr, 1, 1, 1,(pow(i,4))/(pow(amt_of_rays,4)*1.4));
-        double radius = (90000000.0*(-7*i/amt_of_rays+8.0))/(get_vector_length(getVector(observer,lightsource)));
+        cairo_set_source_rgba(cr, 0.8, 0.8, 0.8,(pow(i,4))/(pow(amt_of_rays,4)*1.4));
+        double radius = (695508000.0*(-7*i/amt_of_rays+8.0))/(get_vector_length(getVector(observer,lightsource)));
         cairo_arc(cr,p2d.x,p2d.y,radius,0,M_PI*2);
         cairo_stroke(cr);
     }
     cairo_set_source_rgb(cr, 1, 1, 1);
-    double radius = 100000000/(get_vector_length(getVector(observer,lightsource)));
+    double radius = 695508000/(get_vector_length(getVector(observer,lightsource)));
     cairo_arc(cr,p2d.x,p2d.y,radius,0,M_PI*2);
     cairo_fill(cr);
 }
 
 static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
-    mouse_pressed[event->button-1] = TRUE;
+    get_mouse_pressed(event);
     return FALSE;
 }
 
 void on_button_release(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
-    mouse_pressed[event->button-1] = FALSE;
+    get_mouse_released(event);
 }
 
 static gboolean on_key_press_event(GtkWidget *widget, GdkEventKey *event, gpointer user_data) {
-    if(event->keyval == GDK_KEY_w || event -> keyval == GDK_KEY_W) key_pressed[0] = TRUE;
-    if(event->keyval == GDK_KEY_s || event -> keyval == GDK_KEY_S) key_pressed[1] = TRUE;
-    if(event->keyval == GDK_KEY_a || event -> keyval == GDK_KEY_A) key_pressed[2] = TRUE;
-    if(event->keyval == GDK_KEY_d || event -> keyval == GDK_KEY_D) key_pressed[3] = TRUE;
-    if(event->keyval == GDK_KEY_q || event -> keyval == GDK_KEY_Q) key_pressed[4] = TRUE;
-    if(event->keyval == GDK_KEY_e || event -> keyval == GDK_KEY_E) key_pressed[5] = TRUE;
-    if(event->keyval == GDK_KEY_Shift_L) key_pressed[6] = TRUE;
-    if(event->keyval == GDK_KEY_Control_L) key_pressed[7] = TRUE;
+    get_key_pressed(event);
     return TRUE;
 }
 
 gboolean key_release_callback(GtkWidget *widget, GdkEventKey *event, gpointer data) {
-    if(event->keyval == GDK_KEY_w || event -> keyval == GDK_KEY_W) key_pressed[0] = FALSE;
-    if(event->keyval == GDK_KEY_s || event -> keyval == GDK_KEY_S) key_pressed[1] = FALSE;
-    if(event->keyval == GDK_KEY_a || event -> keyval == GDK_KEY_A) key_pressed[2] = FALSE;
-    if(event->keyval == GDK_KEY_d || event -> keyval == GDK_KEY_D) key_pressed[3] = FALSE;
-    if(event->keyval == GDK_KEY_q || event -> keyval == GDK_KEY_Q) key_pressed[4] = FALSE;
-    if(event->keyval == GDK_KEY_e || event -> keyval == GDK_KEY_E) key_pressed[5] = FALSE;
-    if(event->keyval == GDK_KEY_Shift_L) key_pressed[6] = FALSE;
-    if(event->keyval == GDK_KEY_Control_L) key_pressed[7] = FALSE;
+    get_key_released(event);
     return TRUE;
 }
 
-void move() {
-    double a = acos(looking.x);
-    if(overrotation == TRUE) a = 2*M_PI-a;
 
-    double move = 5;
-    if(key_pressed[0]) {
-        observer.x += move*looking.x;
-        observer.y += move*looking.y;
-    }
-    if(key_pressed[1]) {
-        observer.x -= move*looking.x;
-        observer.y -= move*looking.y;
-    }
-    if(key_pressed[2]) {
-        observer.x += move*cos(a-M_PI/2);
-        observer.y += move*sin(a-M_PI/2);
-    }
-    if(key_pressed[3]) {
-        observer.x -= move*cos(a-M_PI/2);
-        observer.y -= move*sin(a-M_PI/2);
-    }
-    if(key_pressed[6]) observer.z -= move;
-    if(key_pressed[7]) observer.z += move;
-}
-
-Point2D_i get_mouse_pos(GtkWidget *widget) {
-    int win_x, win_y;
-    GtkWindow *gtk_window;
-    gtk_window = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-    gtk_window_get_position(gtk_window, &win_x, &win_y);
-
-    int x, y;
-    GdkDisplay* display = gdk_display_get_default();
-    GdkSeat* seat = gdk_display_get_default_seat(display);
-    GdkDevice* pointer = gdk_seat_get_pointer(seat);
-    gdk_device_get_position (pointer, NULL, &x, &y);
-    x -= win_x;
-    y -= win_y;
-    Point2D_i p = {x,y};
-    return p;
-}
-
-void rotate(GtkWidget *widget) {
-    double rotate = M_PI/200;
-
-    if(key_pressed[4]) {
-        double a = acos((looking.x)/sqrt(looking.x*looking.x+looking.y*looking.y));
-        if(overrotation == TRUE) a = 2*M_PI-a;
-        if(a-rotate < 0) {overrotation=TRUE; a+=M_PI*2;}
-        else if(overrotation == TRUE && a-rotate < M_PI) overrotation = FALSE;
-        if(a-rotate < M_PI) overrotation=FALSE;
-        looking.x = cos(a-rotate);
-        looking.y = sin(a-rotate);
-    }
-    if(key_pressed[5]) {
-        double a = acos((looking.x)/sqrt(looking.x*looking.x+looking.y*looking.y));
-        if(overrotation == TRUE) a = 2*M_PI-a;
-        if(a+rotate > M_PI) overrotation=TRUE;
-        else if(overrotation == TRUE && a+rotate > M_PI*2) overrotation = FALSE;
-        if(a+rotate > M_PI*2) {a -= M_PI*2; overrotation=FALSE;}
-        looking.x = cos(a+rotate);
-        looking.y = sin(a+rotate);
-    }
-    if(mouse_pressed[2]) {
-
-        Point2D_i mouse = get_mouse_pos(widget);
-        double rotate_xy = (((double)mouse.x-(double)WINDOW_WIDTH/2)*(double)WINDOW_WIDTH)/(2500*(double)WINDOW_WIDTH);
-        double rotate_z  = -(((double)mouse.y-(double)WINDOW_HEIGHT/2)*(double)WINDOW_HEIGHT)/(2500*(double)WINDOW_HEIGHT);
-
-        double a_xy = acos((looking.x) / sqrt(pow(looking.x, 2) + pow(looking.y, 2)));
-        double a_z = acos(looking.z/sqrt(pow(looking.x, 2) + pow(looking.y, 2)));
-        if(overrotation == TRUE) a_xy = 2 * M_PI - a_xy;
-
-        if(a_xy + rotate_xy < 0) { overrotation=TRUE; a_xy+= M_PI * 2;}
-        else if(a_xy + rotate_xy > 2 * M_PI) { overrotation=FALSE; a_xy-= 2 * M_PI;}
-        else if(overrotation == TRUE && a_xy + rotate_xy < M_PI) overrotation = FALSE;
-        else if(a_xy + rotate_xy > M_PI && overrotation == FALSE) overrotation=TRUE;
-
-        looking.x = cos(a_xy + rotate_xy);
-        looking.y = sin(a_xy + rotate_xy);
-
-       //if(a_z+rotate_z < M_PI/1000) rotate_z = -(a_z-M_PI/1000);
-        //else if(a_z+rotate_z > M_PI-M_PI/1000) rotate_z = (M_PI-M_PI/1000)-a_z;
-
-        looking.z = cos(a_z+rotate_z);
-        looking = normalize_vector(looking);
-        print_vector(looking);
-
-
-        int x, y;
-        GtkWindow *gtk_window;
-        gtk_window = GTK_WINDOW(gtk_widget_get_toplevel(widget));
-        gtk_window_get_position(gtk_window, &x, &y);
-
-        GdkDisplay *display = gdk_display_get_default();
-        GdkSeat *seat = gdk_display_get_default_seat(display);
-        GdkDevice *pointer = gdk_seat_get_pointer(seat);
-        GdkScreen *screen;
-        screen = gdk_screen_get_default();
-
-
-        gdk_device_warp(pointer, screen, x+WINDOW_WIDTH/2, y+WINDOW_HEIGHT/2);
-        if(mouse_visible == TRUE) {
-            GdkCursor *cursor;
-
-            display = gdk_display_get_default();
-            cursor = gdk_cursor_new_for_display(display, GDK_BLANK_CURSOR);
-            gdk_window_set_cursor(gtk_widget_get_window(widget), cursor);
-            mouse_visible = FALSE;
-        }
-    } else if(mouse_visible == FALSE) {
-        GdkDisplay *display;
-        GdkCursor *cursor;
-
-        display = gdk_display_get_default();
-        cursor = gdk_cursor_new_for_display(display, GDK_LEFT_PTR);
-        gdk_window_set_cursor(gtk_widget_get_window(widget), cursor);
-        mouse_visible = TRUE;
-    }
-}
 
 static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
@@ -497,9 +278,9 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     //lightsource = observer;
 
-    //cube1.pitch  += M_PI/250;
+    cube1.pitch  += M_PI/250;
     //cube1.roll   -= M_PI / 250;
-    //cube1.yaw    += M_PI / 250;
+    cube1.yaw    += M_PI / 250;
     //cube2.roll   += M_PI / 200;
 
     //cube1.pitch  = M_PI/6;
@@ -513,8 +294,8 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     draw_faces(cr, cube2);
     draw_faces(cr, cube1);
 
-    move();
-    rotate(widget);
+    move(&looking, &observer);
+    rotate(widget, &looking, WINDOW_WIDTH, WINDOW_HEIGHT);
 
     return FALSE;
 }
