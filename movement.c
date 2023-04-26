@@ -12,10 +12,10 @@ void get_key_pressed(GdkEventKey *event) {
     if(event->keyval == GDK_KEY_s || event -> keyval == GDK_KEY_S) key_pressed[1] = TRUE;   // Backward
     if(event->keyval == GDK_KEY_a || event -> keyval == GDK_KEY_A) key_pressed[2] = TRUE;   // Left
     if(event->keyval == GDK_KEY_d || event -> keyval == GDK_KEY_D) key_pressed[3] = TRUE;   // Right
-    if(event->keyval == GDK_KEY_q || event -> keyval == GDK_KEY_Q) key_pressed[4] = TRUE;
-    if(event->keyval == GDK_KEY_e || event -> keyval == GDK_KEY_E) key_pressed[5] = TRUE;
-    if(event->keyval == GDK_KEY_Shift_L) key_pressed[6] = TRUE;
-    if(event->keyval == GDK_KEY_Control_L) key_pressed[7] = TRUE;
+    if(event->keyval == GDK_KEY_q || event -> keyval == GDK_KEY_Q) key_pressed[4] = TRUE;   // rotate Left
+    if(event->keyval == GDK_KEY_e || event -> keyval == GDK_KEY_E) key_pressed[5] = TRUE;   // rotate right
+    if(event->keyval == GDK_KEY_Shift_L) key_pressed[6] = TRUE;                             // Up
+    if(event->keyval == GDK_KEY_Control_L) key_pressed[7] = TRUE;                           // Down
 }
 
 void get_key_released(GdkEventKey *event) {
@@ -30,11 +30,11 @@ void get_key_released(GdkEventKey *event) {
 }
 
 void get_mouse_pressed(GdkEventButton *event) {
-    mouse_pressed[event->button-1] = TRUE;
+    mouse_pressed[event->button-1] = TRUE;  // right-click
 }
 
 void get_mouse_released(GdkEventButton *event) {
-    mouse_pressed[event->button-1] = FALSE;
+    mouse_pressed[event->button-1] = FALSE; // right-click
 }
 
 Point2D_int get_mouse_pos(GtkWidget *widget) {
@@ -55,15 +55,11 @@ Point2D_int get_mouse_pos(GtkWidget *widget) {
 }
 
 
-
-
-
-
 void move(Vector *looking, Vector *observer) {
     double a = acos(looking->x);
     if(overrotation == TRUE) a = 2*M_PI-a;
 
-    double move = 5;
+    double move = .02;
     if(key_pressed[0]) {
         observer->x += move*looking->x;
         observer->y += move*looking->y;

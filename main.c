@@ -6,8 +6,8 @@
 #include "drawing.h"
 
 
-typedef struct {
-    double length;
+typedef struct{
+    double height, width, length;
     double pitch, yaw, roll;
     Point3D p;
 } Cube;
@@ -21,9 +21,10 @@ double lasttime;
 time_t rawtime;
 double DISTANCE = 1000;
 
-Cube cube1 = {100, 0, 0, 0, 400, 0, 0};
-Cube cube2 = {100, M_PI/6, 0, 0, 1000, -1000, 0};
-Cube cube3 = {100, M_PI/5, 0, 0, -1000, 300, 0};
+Cube sat = {.3, .1, .1,  0, 0, 0, 2, 0, 0};
+Color sat_color = {0.8, .4, 0.2};
+Cube pan = { .3, .3, .002, 0,0,0,2,0,0};
+Color pan_color = {0, 0.2, 0.7};
 
 //Point3D observer = {350,190,0};
 Point3D observer = {0,0,0};
@@ -35,11 +36,11 @@ Vector looking = {1,0,0};
 
 
 
-Point3D * getCubePoints(Point3D center, double size, double pitch, double yaw, double roll) {
+Point3D * getCubePoints(Cube cube) {
     static Point3D corners[8];
-    double cosPitch = cos(pitch), sinPitch = sin(pitch);
-    double cosYaw = cos(yaw), sinYaw = sin(yaw);
-    double cosRoll = cos(roll), sinRoll = sin(roll);
+    double cosPitch = cos(cube.pitch), sinPitch = sin(cube.pitch);
+    double cosYaw = cos(cube.yaw), sinYaw = sin(cube.yaw);
+    double cosRoll = cos(cube.roll), sinRoll = sin(cube.roll);
 
     double R[3][3] = {
             {cosYaw * cosRoll, cosYaw * sinRoll, -sinYaw},
@@ -47,39 +48,38 @@ Point3D * getCubePoints(Point3D center, double size, double pitch, double yaw, d
             {cosPitch * sinYaw * cosRoll + sinPitch * sinRoll, cosPitch * sinYaw * sinRoll - sinPitch * cosRoll, cosPitch * cosYaw}
     };
 
-    double halfSize = size / 2;
     for (int i = 0; i < 8; i++) {
-        double x = (i & 1) ? halfSize : -halfSize;
-        double y = (i & 2) ? halfSize : -halfSize;
-        double z = (i & 4) ? halfSize : -halfSize;
+        double x = (i & 1) ? cube.width : -cube.width;
+        double y = (i & 2) ? cube.length : -cube.length;
+        double z = (i & 4) ? cube.height : -cube.height;
 
         double rotatedY = R[0][0] * x + R[0][1] * y + R[0][2] * z;
         double rotatedX = R[1][0] * x + R[1][1] * y + R[1][2] * z;
         double rotatedZ = R[2][0] * x + R[2][1] * y + R[2][2] * z;
  
-        corners[i].x = center.x + rotatedX;
-        corners[i].y = center.y + rotatedY;
-        corners[i].z = center.z + rotatedZ;
+        corners[i].x = cube.p.x + rotatedX;
+        corners[i].y = cube.p.y + rotatedY;
+        corners[i].z = cube.p.z + rotatedZ;
     }
 
     return corners;
 }
 
-void draw_faces(cairo_t *cr, Cube cube) {
-    Point3D * p3d = getCubePoints(cube.p,cube.length,cube.pitch,cube.yaw,cube.roll);
+void draw_faces(cairo_t *cr, Cube cube, Color color) {
+    Point3D * p3d = getCubePoints(cube);
     Point3D p_temp[4];
 
     for(int i = 0; i < 2; i++) {
         for(int j = 0; j < 4; j++) {
             p_temp[j] = p3d[i+j*2];
         }
-        draw_face(cr,cube.p,p_temp, lightsource);
+        draw_face(cr,cube.p,p_temp, lightsource, color);
     }
     for(int i = 0; i < 2; i++) {
         for(int j = 0; j < 4; j++) {
             p_temp[j] = p3d[j+i*4];
         }
-        draw_face(cr,cube.p,p_temp, lightsource);
+        draw_face(cr,cube.p,p_temp, lightsource, color);
     }
 
     for(int i = 0; i < 2; i++) {
@@ -87,12 +87,12 @@ void draw_faces(cairo_t *cr, Cube cube) {
         p_temp[1] = p3d[2*i+1];
         p_temp[2] = p3d[2*i+4];
         p_temp[3] = p3d[2*i+5];
-        draw_face(cr,cube.p,p_temp, lightsource);
+        draw_face(cr,cube.p,p_temp, lightsource, color);
     }
 }
 
-void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data) {
-    Point3D * p3d = getCubePoints(cube1.p, cube1.length, cube1.pitch, cube1.yaw, cube1.roll);
+void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data, Cube cube) {
+    Point3D * p3d = getCubePoints(cube);
     Point2D p2d[8];
 
     for(int i = 0; i < 8; i++) {
@@ -146,21 +146,29 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     //lightsource = observer;
 
-    cube1.pitch  += M_PI/250;
-    //cube1.roll   -= M_PI / 250;
-    cube1.yaw    += M_PI / 250;
-    //cube2.roll   += M_PI / 200;
+    sat.roll  += M_PI/250;
+    //sat.yaw    += M_PI / 250;
+    if(sat.roll > M_PI * 2) sat.roll -= M_PI * 2;
 
-    //cube1.pitch  = M_PI/6;
-    //cube1.yaw    = M_PI/4;
-    //cube1.roll   = M_PI/4;
+    Point3D * p3d = getCubePoints(sat);
+    int offset = 2;
+    pan.p.x = (p3d[0].x + p3d[1].x + p3d[2+offset].x + p3d[3+offset].x)/4;
+    pan.p.y = (p3d[0].y + p3d[1].y + p3d[2+offset].y + p3d[3+offset].y)/4;
+    pan.p.z = (p3d[0].z + p3d[1].z + p3d[2+offset].z + p3d[3+offset].z)/4;
+    pan.pitch = sat.pitch;
+    pan.yaw = sat.yaw;
+    pan.roll = sat.roll;
 
-    if(cube1.roll > M_PI * 2) cube1.roll -= M_PI * 2;
-    //draw_skeleton(widget, cr, data);
+    //draw_skeleton(widget, cr, data, sat);
     draw_lightsource(cr, lightsource);
-    draw_faces(cr, cube3);
-    draw_faces(cr, cube2);
-    draw_faces(cr, cube1);
+    if(get_vector_length(getVector(observer, sat.p)) <
+            get_vector_length(getVector(observer, pan.p))) {
+        draw_faces(cr, pan, pan_color);
+        draw_faces(cr, sat, sat_color);
+    } else {
+        draw_faces(cr, sat, sat_color);
+        draw_faces(cr, pan, pan_color);
+    }
 
     move(&looking, &observer);
     rotate(widget, &looking, WINDOW_WIDTH, WINDOW_HEIGHT);

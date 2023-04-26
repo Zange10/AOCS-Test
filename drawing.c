@@ -1,4 +1,5 @@
 #include "geometry.h"
+#include "drawing.h"
 #include <cairo.h>
 #include <math.h>
 
@@ -82,16 +83,16 @@ void draw_stroke(cairo_t *cr, Point2D p1, Point2D p2) {
 }
 
 
-void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource) {
+void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource, Color color) {
     Vector looking = *p_looking;
     Point3D observer = *p_observer;
 
-    if(get_vector_length(getVector(points[0], points[1])) > 100 * 1.1) {
+    if(get_vector_length(getVector(points[0], points[1])) > get_vector_length(getVector(points[0], points[2]))) {
         Point3D tempP = points[1];
         points[1] = points[2];
         points[2] = tempP;
     }
-    if(get_vector_length(getVector(points[1], points[2])) > 100 * 1.1) {
+    if(get_vector_length(getVector(points[1], points[2])) > get_vector_length(getVector(points[1], points[3]))) {
         Point3D tempP = points[2];
         points[2] = points[3];
         points[3] = tempP;
@@ -122,12 +123,12 @@ void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource)
     }
 
     double a_ls = get_vector_angle(CoM2c, ls2c);
-    double light = 0.5;
+    double light = 0.2;
     if(a_ls > M_PI/2) {
-        light += cos(a_ls+M_PI)*0.3;
+        light += cos(a_ls+M_PI)*0.8;
     }
 
-    cairo_set_source_rgb(cr, light/2-0.5, light, light/2-0.5);
+    cairo_set_source_rgb(cr, color.r*light, color.g*light, color.b*light);
     cairo_move_to(cr, p2d[5].x, p2d[5].y);
     for(int i = 0; i < 3; i++) {
         cairo_line_to(cr, p2d[i+2].x, p2d[i+2].y);
@@ -135,8 +136,9 @@ void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource)
     cairo_close_path(cr);
     cairo_fill(cr);
 
+    light = 0.15;
 
-    cairo_set_source_rgb(cr, 0, 0.2, 0);
+    cairo_set_source_rgb(cr, color.r*light, color.g*light, color.b*light);
     draw_stroke(cr, p2d[5], p2d[2]);
     for(int i = 0; i < 3; i++) {
         draw_stroke(cr, p2d[2+i], p2d[3+i]);
