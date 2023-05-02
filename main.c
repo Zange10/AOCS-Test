@@ -17,8 +17,8 @@ int WINDOW_WIDTH = 1000, WINDOW_HEIGHT = 1000;
 int frames = 0;
 gboolean run = TRUE;
 const int FPS = 60;
-double lasttime;
-time_t rawtime;
+double last_time;
+time_t raw_time;
 double DISTANCE = 1000;
 
 Cube sat = {.3, .1, .1,  0, 0, 0, 2, 0, 0};
@@ -28,7 +28,7 @@ Color pan_color = {0, 0.2, 0.7};
 
 //Point3D observer = {350,190,0};
 Point3D observer = {0,0,0};
-Point3D lightsource = {0,-150000000,0};
+Point3D light_source = {0, -150000000, 0};
 Vector looking = {1,0,0};
 //Vector looking = {-0.392683,-0.91388,0};
 //Vector looking = {1,0,0};
@@ -36,16 +36,16 @@ Vector looking = {1,0,0};
 
 
 
-Point3D * getCubePoints(Cube cube) {
+Point3D * get_cube_points(Cube cube) {
     static Point3D corners[8];
-    double cosPitch = cos(cube.pitch), sinPitch = sin(cube.pitch);
-    double cosYaw = cos(cube.yaw), sinYaw = sin(cube.yaw);
-    double cosRoll = cos(cube.roll), sinRoll = sin(cube.roll);
+    double cos_pitch = cos(cube.pitch), sin_pitch = sin(cube.pitch);
+    double cos_yaw = cos(cube.yaw), sin_yaw = sin(cube.yaw);
+    double cos_roll = cos(cube.roll), sin_roll = sin(cube.roll);
 
     double R[3][3] = {
-            {cosYaw * cosRoll, cosYaw * sinRoll, -sinYaw},
-            {sinPitch * sinYaw * cosRoll - cosPitch * sinRoll, sinPitch * sinYaw * sinRoll + cosPitch * cosRoll, cosYaw * sinPitch},
-            {cosPitch * sinYaw * cosRoll + sinPitch * sinRoll, cosPitch * sinYaw * sinRoll - sinPitch * cosRoll, cosPitch * cosYaw}
+            {cos_yaw * cos_roll,                                    cos_yaw * sin_roll,                                    -sin_yaw},
+            {sin_pitch * sin_yaw * cos_roll - cos_pitch * sin_roll, sin_pitch * sin_yaw * sin_roll + cos_pitch * cos_roll, cos_yaw * sin_pitch},
+            {cos_pitch * sin_yaw * cos_roll + sin_pitch * sin_roll, cos_pitch * sin_yaw * sin_roll - sin_pitch * cos_roll, cos_pitch * cos_yaw}
     };
 
     for (int i = 0; i < 8; i++) {
@@ -53,33 +53,33 @@ Point3D * getCubePoints(Cube cube) {
         double y = (i & 2) ? cube.length : -cube.length;
         double z = (i & 4) ? cube.height : -cube.height;
 
-        double rotatedY = R[0][0] * x + R[0][1] * y + R[0][2] * z;
-        double rotatedX = R[1][0] * x + R[1][1] * y + R[1][2] * z;
-        double rotatedZ = R[2][0] * x + R[2][1] * y + R[2][2] * z;
+        double rotated_y = R[0][0] * x + R[0][1] * y + R[0][2] * z;
+        double rotated_x = R[1][0] * x + R[1][1] * y + R[1][2] * z;
+        double rotated_z = R[2][0] * x + R[2][1] * y + R[2][2] * z;
  
-        corners[i].x = cube.p.x + rotatedX;
-        corners[i].y = cube.p.y + rotatedY;
-        corners[i].z = cube.p.z + rotatedZ;
+        corners[i].x = cube.p.x + rotated_x;
+        corners[i].y = cube.p.y + rotated_y;
+        corners[i].z = cube.p.z + rotated_z;
     }
 
     return corners;
 }
 
 void draw_faces(cairo_t *cr, Cube cube, Color color) {
-    Point3D * p3d = getCubePoints(cube);
+    Point3D * p3d = get_cube_points(cube);
     Point3D p_temp[4];
 
     for(int i = 0; i < 2; i++) {
         for(int j = 0; j < 4; j++) {
             p_temp[j] = p3d[i+j*2];
         }
-        draw_face(cr,cube.p,p_temp, lightsource, color);
+        draw_face(cr, cube.p, p_temp, light_source, color);
     }
     for(int i = 0; i < 2; i++) {
         for(int j = 0; j < 4; j++) {
             p_temp[j] = p3d[j+i*4];
         }
-        draw_face(cr,cube.p,p_temp, lightsource, color);
+        draw_face(cr, cube.p, p_temp, light_source, color);
     }
 
     for(int i = 0; i < 2; i++) {
@@ -87,12 +87,12 @@ void draw_faces(cairo_t *cr, Cube cube, Color color) {
         p_temp[1] = p3d[2*i+1];
         p_temp[2] = p3d[2*i+4];
         p_temp[3] = p3d[2*i+5];
-        draw_face(cr,cube.p,p_temp, lightsource, color);
+        draw_face(cr, cube.p, p_temp, light_source, color);
     }
 }
 
 void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data, Cube cube) {
-    Point3D * p3d = getCubePoints(cube);
+    Point3D * p3d = get_cube_points(cube);
     Point2D p2d[8];
 
     for(int i = 0; i < 8; i++) {
@@ -144,13 +144,13 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     cairo_set_source_rgb(cr, 0,0,0);
     cairo_fill(cr);
 
-    //lightsource = observer;
+    //light_source = observer;
 
     sat.roll  += M_PI/250;
     //sat.yaw    += M_PI / 250;
     if(sat.roll > M_PI * 2) sat.roll -= M_PI * 2;
 
-    Point3D * p3d = getCubePoints(sat);
+    Point3D * p3d = get_cube_points(sat);
     int offset = 2;
     pan.p.x = (p3d[0].x + p3d[1].x + p3d[2+offset].x + p3d[3+offset].x)/4;
     pan.p.y = (p3d[0].y + p3d[1].y + p3d[2+offset].y + p3d[3+offset].y)/4;
@@ -160,7 +160,7 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
     pan.roll = sat.roll;
 
     //draw_skeleton(widget, cr, data, sat);
-    draw_lightsource(cr, lightsource);
+    draw_light_source(cr, light_source);
     if(get_vector_length(getVector(observer, sat.p)) <
             get_vector_length(getVector(observer, pan.p))) {
         draw_faces(cr, pan, pan_color);
@@ -177,13 +177,13 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 }
 
 static gboolean on_timeout(gpointer data) {
-    rawtime = time(NULL);
-    if(rawtime != lasttime) {
+    raw_time = time(NULL);
+    if(raw_time != last_time) {
         printf("%d\n", frames);
         frames = 0;
     }
     frames++;
-    lasttime = rawtime;
+    last_time = raw_time;
     GtkWidget *drawing_area = GTK_WIDGET(data);
     gtk_widget_queue_draw(drawing_area);
     return G_SOURCE_CONTINUE;

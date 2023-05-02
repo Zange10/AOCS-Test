@@ -16,6 +16,6 @@ Point2D p3d_to_p2d(Point3D p3d);
 void draw_stroke(cairo_t *cr, Point2D p1, Point2D p2);
 
 
-void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource, Color color);
+void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D light_source, Color color);
 
-void draw_lightsource(cairo_t *cr, Point3D lightsource);
+void draw_light_source(cairo_t *cr, Point3D light_source);

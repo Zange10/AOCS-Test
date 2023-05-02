@@ -83,7 +83,7 @@ void draw_stroke(cairo_t *cr, Point2D p1, Point2D p2) {
 }
 
 
-void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource, Color color) {
+void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D light_source, Color color) {
     Vector looking = *p_looking;
     Point3D observer = *p_observer;
 
@@ -105,7 +105,7 @@ void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource,
 
     Vector CoM2c = getVector(CoM,center);
     Vector o2c = getVector(observer,center);
-    Vector ls2c = getVector(lightsource,center);
+    Vector ls2c = getVector(light_source, center);
 
     double a = get_vector_angle(CoM2c,o2c);
     double a_looking = get_vector_angle(o2c,looking);
@@ -117,8 +117,8 @@ void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource,
 
 
     for(int i = 0; i < 4; i++) {
-        Vector tempv = getVector(observer,points[i]);
-        if(get_vector_angle(tempv,looking) > M_PI/2) return;
+        Vector temp_v = getVector(observer, points[i]);
+        if(get_vector_angle(temp_v, looking) > M_PI / 2) return;
         p2d[i+2] = p3d_to_p2d(points[i]);
     }
 
@@ -145,22 +145,22 @@ void draw_face(cairo_t *cr, Point3D CoM, Point3D points[4], Point3D lightsource,
     }
 }
 
-void draw_lightsource(cairo_t *cr, Point3D lightsource) {
+void draw_light_source(cairo_t *cr, Point3D light_source) {
     Vector looking = *p_looking;
     Point3D observer = *p_observer;
 
-    double a_looking = get_vector_angle(getVector(observer,lightsource),looking);
+    double a_looking = get_vector_angle(getVector(observer, light_source), looking);
     if(a_looking > M_PI/2) return;
-    Point2D p2d = p3d_to_p2d(lightsource);
+    Point2D p2d = p3d_to_p2d(light_source);
     double amt_of_rays = 20;
     for(int i = 0; i < amt_of_rays; i++) {
         cairo_set_source_rgba(cr, 0.8, 0.8, 0.8,(pow(i,4))/(pow(amt_of_rays,4)*1.4));
-        double radius = (695508000.0*(-8*i/amt_of_rays+8.0))/(get_vector_length(getVector(observer,lightsource)));
+        double radius = (695508000.0*(-8*i/amt_of_rays+8.0))/(get_vector_length(getVector(observer, light_source)));
         cairo_arc(cr,p2d.x,p2d.y,radius,0,M_PI*2);
         cairo_stroke(cr);
     }
     cairo_set_source_rgb(cr, 1, 1, 1);
-    double radius = 695508000/(get_vector_length(getVector(observer,lightsource)));
+    double radius = 695508000/(get_vector_length(getVector(observer, light_source)));
     cairo_arc(cr,p2d.x,p2d.y,radius,0,M_PI*2);
     cairo_fill(cr);
 }
