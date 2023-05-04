@@ -133,8 +133,14 @@ gboolean key_release_callback(GtkWidget *widget, GdkEventKey *event, gpointer da
 }
 
 
-static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
-{
+static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data) {
+    if(is_connected() == 1) {
+        update_connector();
+    } else {
+        printf("Trying to connect...\n");
+        init_connector();
+    }
+
     GtkAllocation allocation;
     gtk_widget_get_allocation(widget, &allocation);
     WINDOW_WIDTH = allocation.width;
@@ -148,9 +154,9 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     //light_source = observer;
 
-    sat.pitch = get_pitch();
-    sat.yaw = get_yaw();
-    sat.roll = get_roll();
+    sat.pitch = get_connector_pitch();
+    sat.yaw = get_connector_yaw();
+    sat.roll = get_connector_roll();
 
     Point3D * p3d = get_cube_points(sat);
     // attach solar panels to satellite
@@ -195,6 +201,7 @@ static gboolean on_timeout(gpointer data) {
 int main(int argc, char *argv[]) {
     init_drawing(&looking, &observer, &WINDOW_WIDTH, &WINDOW_HEIGHT, &DISTANCE);
     init_connector();
+    g_ATEXIT(destruct_connector);
 
     GtkWidget *window, *drawing_area;
 
