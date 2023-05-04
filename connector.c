@@ -4,15 +4,22 @@
 
 #include "connector.h"
 #include "geometry.h"
+#include <math.h>
+
+double pitch = 0;
+double yaw = 0;
+double roll = 0;
 
 double get_pitch() {
-    return 0;
+    pitch += M_PI/200;
+    return pitch;
 }
 
 double get_yaw() {
-    return 0;
+    return yaw;
 }
 
 double get_roll() {
-    return 0;
+    roll -= M_PI/500;
+    return roll;
 }

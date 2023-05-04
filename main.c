@@ -4,6 +4,7 @@
 //#include "geometry.h"
 #include "movement.h"
 #include "drawing.h"
+#include "connector.h"
 
 
 typedef struct{
@@ -147,9 +148,10 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     //light_source = observer;
 
-    sat.roll  += M_PI/250;
-    //sat.yaw    += M_PI / 250;
-    if(sat.roll > M_PI * 2) sat.roll -= M_PI * 2;
+    sat.pitch = get_pitch();
+    sat.yaw = get_yaw();
+    sat.roll = get_roll();
+    printf("%d \n", sat.pitch);
 
     Point3D * p3d = get_cube_points(sat);
     int offset = 2;
