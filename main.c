@@ -35,7 +35,7 @@ Vector looking = {1,0,0};
 
 
 
-
+// returns the 3D-points of the given cube
 Point3D * get_cube_points(Cube cube) {
     static Point3D corners[8];
     double cos_pitch = cos(cube.pitch), sin_pitch = sin(cube.pitch);
@@ -65,6 +65,7 @@ Point3D * get_cube_points(Cube cube) {
     return corners;
 }
 
+// draw the visible faces of the given cube in the given color
 void draw_faces(cairo_t *cr, Cube cube, Color color) {
     Point3D * p3d = get_cube_points(cube);
     Point3D p_temp[4];
@@ -91,6 +92,7 @@ void draw_faces(cairo_t *cr, Cube cube, Color color) {
     }
 }
 
+// draw lines between the given cube's points
 void draw_skeleton(GtkWidget *widget, cairo_t *cr, gpointer data, Cube cube) {
     Point3D * p3d = get_cube_points(cube);
     Point2D p2d[8];
@@ -128,7 +130,6 @@ gboolean key_release_callback(GtkWidget *widget, GdkEventKey *event, gpointer da
     get_key_released(event);
     return TRUE;
 }
-
 
 
 static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)

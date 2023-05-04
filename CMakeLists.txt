@@ -12,5 +12,5 @@ link_directories(${GTK3_LIBRARY_DIRS})
 add_definitions(${GTK3_CFLAGS_OTHER})
 
 add_executable(AOCS_Test
-        main.c movement.c geometry.c drawing.c)
+        main.c movement.c geometry.c drawing.c connector.c connector.h)
 target_link_libraries(AOCS_Test ${GTK3_LIBRARIES} m)
