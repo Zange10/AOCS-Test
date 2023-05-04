@@ -7,6 +7,9 @@
 
 #endif //AOCS_TEST_CONNECTOR_H
 
+// initialize connector
+void init_connector();
+
 // returns the pitch from the connector
 double get_pitch();
 

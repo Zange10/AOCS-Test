@@ -5,6 +5,10 @@
 #include "connector.h"
 #include "geometry.h"
 
+void init_connector() {
+
+}
+
 double get_pitch() {
     return 0;
 }

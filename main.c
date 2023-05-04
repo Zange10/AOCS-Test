@@ -4,6 +4,7 @@
 //#include "geometry.h"
 #include "movement.h"
 #include "drawing.h"
+#include "connector.h"
 
 
 typedef struct{
@@ -147,11 +148,12 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data)
 
     //light_source = observer;
 
-    sat.roll  += M_PI/250;
-    //sat.yaw    += M_PI / 250;
-    if(sat.roll > M_PI * 2) sat.roll -= M_PI * 2;
+    sat.pitch = get_pitch();
+    sat.yaw = get_yaw();
+    sat.roll = get_roll();
 
     Point3D * p3d = get_cube_points(sat);
+    // attach solar panels to satellite
     int offset = 2;
     pan.p.x = (p3d[0].x + p3d[1].x + p3d[2+offset].x + p3d[3+offset].x)/4;
     pan.p.y = (p3d[0].y + p3d[1].y + p3d[2+offset].y + p3d[3+offset].y)/4;
@@ -192,6 +194,7 @@ static gboolean on_timeout(gpointer data) {
 
 int main(int argc, char *argv[]) {
     init_drawing(&looking, &observer, &WINDOW_WIDTH, &WINDOW_HEIGHT, &DISTANCE);
+    init_connector();
 
     GtkWidget *window, *drawing_area;
 
